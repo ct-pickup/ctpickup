@@ -24,7 +24,7 @@ type Props = {
   shareBusy?: boolean;
   shareDisabled?: boolean;
   /** Exact rating and games from player_cards. Without it (migration not applied) the card shows the one decimal star as before. */
-  exactRating?: { exact?: number | null; ratedGames?: number | null; settledGames?: number | null } | null;
+  exactRating?: { exact?: number | null; ratedGames?: number | null; settledGames?: number | null; attendanceReliability?: number | null } | null;
 };
 
 /**
@@ -68,11 +68,12 @@ export default function ProfileCard({
           exact: exactRating?.exact ?? null,
           ratedGames: exactRating?.ratedGames ?? null,
           settledGames: exactRating?.settledGames ?? null,
+          attendanceReliability: exactRating?.attendanceReliability ?? null,
           provisional: data.provisional,
         })
       : null;
   // The new block needs the games behind the rating. Without them keep today's compact row.
-  const full = disp != null && disp.reliability != null && disp.gamesLabel != null;
+  const full = disp != null && disp.gamesLabel != null;
 
   const verifiedChip = data.verified ? (
     <View style={styles.verified}>

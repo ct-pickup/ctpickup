@@ -9,6 +9,8 @@ export type RatingInput = {
   /** player_cards.rated_games and settled_games. Null before the migration is applied. */
   ratedGames: number | null;
   settledGames: number | null;
+  /** player_cards.attendance_reliability (0 to 100). Null before its migration is applied. */
+  attendanceReliability?: number | null;
   provisional: boolean;
 };
 
@@ -17,7 +19,7 @@ export type RatingDisplay = {
   number: string;
   /** "3.5 stars", "1 star". */
   starsText: string;
-  /** 0 to 100, or null when the games behind the rating are not known (ring and bar hidden). */
+  /** Show-up reliability for the ring, 0 to 100. Null (ring hidden) with 0 rated games or when the column is missing. */
   reliability: number | null;
   settled: boolean;
   /** 0 to 1 for the progress bar, or null when hidden. */
@@ -43,20 +45,30 @@ export function reliabilityPercent(ratedGames: number | null | undefined, settle
   return Math.min(100, Math.round((100 * ratedGames) / settledGames));
 }
 
+/**
+ * The ring value: attendance reliability, shown from the first rated game. Everyone starts at 92, which would look odd with no
+ * games, so 0 rated games (or unknown games, or a missing column) hides it.
+ */
+export function attendanceRing(reliability: number | null | undefined, ratedGames: number | null | undefined): number | null {
+  if (!finite(reliability) || !finite(ratedGames) || ratedGames < 1) return null;
+  return Math.min(100, Math.max(0, Math.round(reliability)));
+}
+
 export function gamesSoFar(n: number): string {
   return `${n} ${n === 1 ? "game" : "games"} so far`;
 }
 
 export function ratingDisplay(r: RatingInput): RatingDisplay {
-  const reliability = reliabilityPercent(r.ratedGames, r.settledGames);
-  const known = reliability != null && finite(r.ratedGames);
+  const confidence = reliabilityPercent(r.ratedGames, r.settledGames);
+  const known = confidence != null && finite(r.ratedGames);
   return {
     number: ratingNumber(r.star, r.exact),
     starsText: starsText(r.star),
-    reliability,
-    // Settled follows the stored flag; if the counts disagree with it, the flag wins for the label but the percent stays true.
+    reliability: attendanceRing(r.attendanceReliability, r.ratedGames),
+    // Settled follows the stored flag; if the counts disagree with it, the flag wins for the label.
     settled: !r.provisional,
-    progress: known ? reliability / 100 : null,
+    // The bar is the rating-confidence signal (rated games toward settled). It never shows a percent.
+    progress: known ? confidence / 100 : null,
     gamesLabel: known ? gamesSoFar(r.ratedGames as number) : null,
   };
 }

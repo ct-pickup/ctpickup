@@ -25,7 +25,8 @@ alter table public.player_ratings enable row level security;
 revoke all on public.player_ratings, public.rating_events from anon, authenticated;
 `;
 const BEFORE = `${STUBS}\n${read("20261002230000_player_cards_legacy_columns.sql")}`;
-const AFTER = `${BEFORE}\n${read("20261102000000_player_cards_exact_rating.sql")}`;
+const MID = `${BEFORE}\n${read("20261102000000_player_cards_exact_rating.sql")}`;
+const AFTER = `${MID}\n${read("20261102000100_player_cards_attendance_reliability.sql")}`;
 
 const U = (n: number) => uuid(8000 + n);
 const player = (n: number, score: number, star: number, verification = "verified", reliability = 92) =>
@@ -39,7 +40,10 @@ describe.skipIf(!SQL_TESTS_ENABLED)("player_cards exact rating (real Postgres)",
     const before = cols(BEFORE);
     const after = cols(AFTER);
     expect(before).toEqual(["user_id", "star_rating", "star_provisional", "percentile", "tier", "verification", "sessions", "reliability"]);
-    expect(after).toEqual([...before, "rating_exact", "rated_games", "settled_games"]);
+    const mid = cols(MID);
+    expect(mid).toEqual([...before, "rating_exact", "rated_games", "settled_games"]);
+    // The second migration appends exactly one more column and leaves the first eleven alone.
+    expect(after).toEqual([...mid, "attendance_reliability"]);
   });
   it("leaves owner, options and grants exactly as they were", () => {
     const meta = (s: string) => sql(`${s} select pg_get_userbyid(relowner) || '|' || coalesce(reloptions::text, '-') || '|' || coalesce(relacl::text, '-') from pg_class where oid = 'public.player_cards'::regclass;`);
@@ -48,7 +52,10 @@ describe.skipIf(!SQL_TESTS_ENABLED)("player_cards exact rating (real Postgres)",
     expect(meta(AFTER)[0]).toContain("authenticated=r/");
   });
   it("can be run twice", () => {
-    expect(() => sql(`${AFTER}\n${read("20261102000000_player_cards_exact_rating.sql")} select 1;`)).not.toThrow();
+    // Each file can be run again right after itself. (Re-running the FIRST file after the second is applied is refused by Postgres,
+    // which will not drop the newer column from a view; the transaction rolls back and nothing changes.)
+    expect(() => sql(`${MID}\n${read("20261102000000_player_cards_exact_rating.sql")} select 1;`)).not.toThrow();
+    expect(() => sql(`${AFTER}\n${read("20261102000100_player_cards_attendance_reliability.sql")} select 1;`)).not.toThrow();
   });
   it("places a score inside its band and always rounds back to the stored star", () => {
     expect(exact(78, 3.5)).toBe(3.26);
@@ -77,6 +84,13 @@ describe.skipIf(!SQL_TESTS_ENABLED)("player_cards exact rating (real Postgres)",
       set local role authenticated;
       select user_id || '|' || star_rating || '|' || rating_exact || '|' || rated_games || '|' || settled_games from public.player_cards order by user_id;`).filter((l) => l.includes("|"));
     expect(out).toEqual([`${U(1)}|3.5|3.50|6|5`, `${U(2)}|1.0|1.00|0|5`]);
+  });
+  it("attendance_reliability is the rounded show-up reliability, 0 to 100, and the legacy reliability column is unchanged", () => {
+    const out = sql(`${AFTER}
+      ${player(1, 81, 3.5, "verified", 92)} ${player(2, 30, 1.0, "verified", 92.6)} ${player(3, 30, 1.0, "verified", 0)} ${player(4, 30, 1.0, "verified", 100)}
+      set local role authenticated;
+      select user_id || '|' || reliability || '|' || attendance_reliability from public.player_cards order by user_id;`).filter((l) => l.includes("|"));
+    expect(out).toEqual([`${U(1)}|92|92`, `${U(2)}|93|93`, `${U(3)}|0|0`, `${U(4)}|100|100`]);
   });
   it("a player cannot read the raw score or the band table through the view", () => {
     expect(() => sql(`${AFTER} set local role authenticated; select score from public.player_cards;`)).toThrow();

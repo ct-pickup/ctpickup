@@ -660,8 +660,8 @@ export default function PlayerProfileScreen() {
   // The full block needs the games behind the rating; without them (migration not applied) the plain Rating row below stays.
   const ratingBlock = card
     ? (() => {
-        const d = ratingDisplay({ star: card.star, exact: card.exact ?? null, ratedGames: card.ratedGames ?? null, settledGames: card.settledGames ?? null, provisional: card.provisional });
-        return d.reliability != null && d.gamesLabel ? d : null;
+        const d = ratingDisplay({ star: card.star, exact: card.exact ?? null, ratedGames: card.ratedGames ?? null, settledGames: card.settledGames ?? null, attendanceReliability: card.attendanceReliability ?? null, provisional: card.provisional });
+        return d.gamesLabel ? d : null;
       })()
     : null;
   const experienceChip = profile.experience_level

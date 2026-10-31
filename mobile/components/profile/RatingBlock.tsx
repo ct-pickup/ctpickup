@@ -12,7 +12,7 @@ type Props = {
   verified?: boolean;
   /** Level name under the stars ("College"), if any. */
   level?: string | null;
-  /** From ratingDisplay(); reliability and gamesLabel must be set. */
+  /** From ratingDisplay(); gamesLabel must be set. The ring appears only when reliability is set. */
   display: RatingDisplay;
   /** Exact rating, so the stars fill continuously. */
   exact?: number | null;

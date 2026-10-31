@@ -53,6 +53,13 @@ describe("player_cards legacy column check", () => {
     expect(findLegacyPlayerCardsReads(`db.from("profiles").select("id, player_cards(star_rating)")`)).toEqual([]);
   });
 
+  it("allows the new non-legacy columns but still flags the legacy reliability column next to them", () => {
+    const ok = `db.from("player_cards").select("user_id,star_rating,rating_exact,rated_games,settled_games,attendance_reliability")`;
+    expect(findLegacyPlayerCardsReads(ok)).toEqual([]);
+    const bad = `db.from("player_cards").select("user_id,attendance_reliability,reliability")`;
+    expect(findLegacyPlayerCardsReads(bad)).toHaveLength(1);
+  });
+
   it("ignores other tables, comments and look-alike names", () => {
     expect(findLegacyPlayerCardsReads(`db.from("player_ratings").select("tier, score")`)).toEqual([]);
     expect(findLegacyPlayerCardsReads(`// never read player_cards(tier)\nconst a = 1;`)).toEqual([]);

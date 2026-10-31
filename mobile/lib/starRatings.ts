@@ -8,6 +8,8 @@ export type PlayerCard = {
   exact?: number | null;
   ratedGames?: number | null;
   settledGames?: number | null;
+  /** Show-up reliability, 0 to 100 (player_cards.attendance_reliability). Null until its migration is applied or when not asked for. */
+  attendanceReliability?: number | null;
 };
 
 /**
@@ -31,7 +33,10 @@ export async function fetchPlayerCards(
     const chunk = ids.slice(i, i + CHUNK);
     type Res = { data: unknown; error: { message: string } | null };
     const read = (cols: string) => supabase.from("player_cards").select(cols).in("user_id", chunk) as unknown as PromiseLike<Res>;
-    let res = await read(options.withExact ? `${base},rating_exact,rated_games,settled_games` : base);
+    // Newest columns first; each older shape is the fallback when a migration has not been applied yet.
+    const exactCols = `${base},rating_exact,rated_games,settled_games`;
+    let res = await read(options.withExact ? `${exactCols},attendance_reliability` : base);
+    if (res.error && options.withExact) res = await read(exactCols);
     if (res.error && options.withExact) res = await read(base);
     const { data, error } = res;
     if (error) {
@@ -46,6 +51,7 @@ export async function fetchPlayerCards(
       rating_exact?: number | string | null;
       rated_games?: number | string | null;
       settled_games?: number | string | null;
+      attendance_reliability?: number | string | null;
     }>) {
       const star = row.star_rating == null ? NaN : Number(row.star_rating);
       if (!row.user_id || !Number.isFinite(star)) continue;
@@ -57,6 +63,7 @@ export async function fetchPlayerCards(
         exact: numOrNull(row.rating_exact),
         ratedGames: numOrNull(row.rated_games),
         settledGames: numOrNull(row.settled_games),
+        attendanceReliability: numOrNull(row.attendance_reliability),
       });
     }
   }
