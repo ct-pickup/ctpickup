@@ -9,6 +9,7 @@ import {
 } from "@/components/layout";
 import { SupportEmailLink } from "@/components/SupportEmailLink";
 import { PRIVACY_POLICY_LAST_UPDATED } from "@/lib/fees/refundPolicyCopy";
+import { PRIVACY_GENDER_BODY, PRIVACY_GENDER_TITLE } from "@/lib/genderPrivacyCopy";
 
 export const metadata: Metadata = {
   title: "Privacy | Competitive Together",
@@ -81,6 +82,11 @@ export default function PrivacyPage() {
               and tournaments, process payments, send essential notifications, calculate
               reliability scores, provide customer support, and improve the platform.
             </p>
+          </section>
+
+          <section>
+            <h2 className="text-body font-semibold text-ink md:text-h3 font-serif">{PRIVACY_GENDER_TITLE}</h2>
+            <p className="mt-2">{PRIVACY_GENDER_BODY}</p>
           </section>
 
           <section>
