@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  PROFILE_IDENTITY_SELECT,
+  PROFILE_IDENTITY_VIEW,
   PROFILE_SELECT,
   PROFILE_SELECT_MINIMAL,
   type ProfileRow,
@@ -58,6 +60,18 @@ function emptyEsportsFields(): Pick<
   };
 }
 
+type Identity = Pick<ProfileRow, "sex" | "gender" | "gender_other">;
+
+/**
+ * The signed-in player's own sex, gender and gender_other, from the view my_profile_identity (never from `profiles`).
+ * If the view does not exist yet, or the read fails, the values are null and the page keeps working.
+ */
+export async function loadOwnIdentity(supabase: SupabaseClient): Promise<Identity> {
+  const res = await supabase.from(PROFILE_IDENTITY_VIEW).select(PROFILE_IDENTITY_SELECT).maybeSingle();
+  const d = (res.error ? null : res.data) as Partial<Identity> | null;
+  return { sex: d?.sex ?? null, gender: d?.gender ?? null, gender_other: d?.gender_other ?? null };
+}
+
 /**
  * Load `profiles` for a user. If esports columns are missing on the database, falls back to a
  * minimal select so the app keeps working and can show a migration notice.
@@ -69,7 +83,8 @@ export async function loadProfileRowForUser(
   const full = await supabase.from("profiles").select(PROFILE_SELECT).eq("id", userId).maybeSingle();
 
   if (!full.error) {
-    return { row: full.data as ProfileRow | null, error: null, hasEsportsSchema: true };
+    const base = full.data as Omit<ProfileRow, keyof Identity> | null;
+    return { row: base ? { ...base, ...(await loadOwnIdentity(supabase)) } : null, error: null, hasEsportsSchema: true };
   }
 
   if (!isMissingProfileColumnError(full.error.message)) {
@@ -88,7 +103,8 @@ export async function loadProfileRowForUser(
 
   const base = mini.data as Omit<
     ProfileRow,
-    "esports_interest" | "esports_platform" | "esports_console" | "esports_online_id" | "plays_goalie"
+    keyof Identity
+    | "esports_interest" | "esports_platform" | "esports_console" | "esports_online_id" | "plays_goalie"
   > | null;
 
   if (!base) {
@@ -96,7 +112,7 @@ export async function loadProfileRowForUser(
   }
 
   return {
-    row: { ...base, ...emptyEsportsFields() },
+    row: { ...base, ...(await loadOwnIdentity(supabase)), ...emptyEsportsFields() },
     error: null,
     hasEsportsSchema: false,
   };
