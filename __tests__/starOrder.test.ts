@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import { capRanked } from "../lib/leaderboards/cap";
 import { compareStarRows, sortStarRows, type StarOrderRow } from "../lib/leaderboards/starOrder";
 
-const row = (user_id: string, star: number | null, rating_exact: number | null, rated_games: number | null): StarOrderRow => ({ user_id, star, rating_exact, rated_games });
+/** games = games played (the "N games played" on the row); rated_games = settled rating sessions. */
+const row = (user_id: string, star: number | null, rating_exact: number | null, rated_games: number | null, games: number | null = rated_games): StarOrderRow => ({ user_id, star, rating_exact, rated_games, games });
 
 describe("Stars leaderboard order", () => {
   it("puts Dylan 3.60 (5 games) above Malik 3.38 (2 games) inside the same 3.5 band", () => {
@@ -18,7 +19,28 @@ describe("Stars leaderboard order", () => {
     const sorted = sortStarRows([row("low", 3, 3.24, 8), row("high", 3.5, 3.26, 1)]);
     expect(sorted.map((r) => r.user_id)).toEqual(["high", "low"]);
   });
-  it("players with 0 rated games go below every rated player, whatever their star", () => {
+  it("games played decides who sinks, not rated games: 4.55 (3 played, 0 rated) > 3.60 (5 rated) > 2.46 (2 played) > 3.58 (0 played)", () => {
+    const sorted = sortStarRows([
+      row("zero-played", 3.5, 3.58, 0, 0),
+      row("low", 2.5, 2.46, 2, 2),
+      row("dylan", 3.5, 3.6, 5, 5),
+      row("arian", 4.5, 4.55, 0, 3),
+    ]);
+    expect(sorted.map((r) => r.user_id)).toEqual(["arian", "dylan", "low", "zero-played"]);
+  });
+  it("a player with games played but no rated game is not sunk", () => {
+    const sorted = sortStarRows([row("rated", 3, 3.1, 4, 4), row("played-only", 3.5, 3.5, 0, 6)]);
+    expect(sorted.map((r) => r.user_id)).toEqual(["played-only", "rated"]);
+  });
+  it("a player with rated games but zero games played does sink (the games played count is the rule)", () => {
+    const sorted = sortStarRows([row("odd", 4.5, 4.6, 2, 0), row("normal", 2, 2.0, 1, 1)]);
+    expect(sorted.map((r) => r.user_id)).toEqual(["normal", "odd"]);
+  });
+  it("unknown games played is not demoted", () => {
+    const sorted = sortStarRows([row("unknown", 4, 4.0, 3, null), row("zero", 5, 4.9, 3, 0), row("some", 2, 2.0, 1, 1)]);
+    expect(sorted.map((r) => r.user_id)).toEqual(["unknown", "some", "zero"]);
+  });
+  it("players with 0 games played go below every player who has played, whatever their star", () => {
     const sorted = sortStarRows([row("zero4", 4.5, 4.6, 0), row("zero35", 3.5, 3.5, 0), row("rated1", 1, 0.9, 3), row("rated35", 3.5, 3.38, 2)]);
     expect(sorted.map((r) => r.user_id)).toEqual(["rated35", "rated1", "zero4", "zero35"]);
   });
