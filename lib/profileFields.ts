@@ -2,11 +2,19 @@
  * Columns for authenticated profile UI.
  * `profiles.full_name` is not in the live schema (see migrations + API usage: names are first/last).
  */
+/**
+ * sex, gender and gender_other are NOT in these lists on purpose: nothing selects them from `profiles` directly. A signed-in
+ * player reads their own values from the view `my_profile_identity` (see PROFILE_IDENTITY_VIEW and lib/profileLoad.ts).
+ */
 export const PROFILE_SELECT_MINIMAL =
-  "first_name,last_name,sex,gender,gender_other,playing_position,username,phone,instagram,avatar_url,tier" as const;
+  "first_name,last_name,playing_position,username,phone,instagram,avatar_url,tier" as const;
+
+/** The signed-in player's own sex, gender and gender_other: one row at most (id = auth.uid()). Created by 20261103000050_my_profile_identity_view.sql. */
+export const PROFILE_IDENTITY_VIEW = "my_profile_identity" as const;
+export const PROFILE_IDENTITY_SELECT = "sex,gender,gender_other" as const;
 
 export const PROFILE_SELECT =
-  "first_name,last_name,sex,gender,gender_other,playing_position,username,phone,instagram,avatar_url,tier,esports_interest,esports_platform,esports_console,esports_online_id,plays_goalie" as const;
+  "first_name,last_name,playing_position,username,phone,instagram,avatar_url,tier,esports_interest,esports_platform,esports_console,esports_online_id,plays_goalie" as const;
 
 export type ProfileRow = {
   first_name: string | null;
