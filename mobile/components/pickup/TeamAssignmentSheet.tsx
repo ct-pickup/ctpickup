@@ -1,7 +1,9 @@
-import { autoBalanceTeams, type PickupTeam } from "@/lib/pickupTeamBalance";
+import { useAuth } from "@/context/AuthContext";
+import { autoBalanceTeams, teamBalanceLine, type BalancePlayer, type PickupTeam } from "@/lib/pickupTeamBalance";
+import { fetchPlayerCards } from "@/lib/starRatings";
 import { hapticTap } from "@/lib/haptics";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { headline, themeColor, useThemedStyles } from "@/theme";
 import {
   Alert,
@@ -38,23 +40,57 @@ export default function TeamAssignmentSheet({
 }: TeamAssignmentSheetProps) {
   useThemedStyles(publish_styles);
 
+  const { supabase } = useAuth();
   const [totalTeams, setTotalTeams] = useState<2 | 3>(2);
   const [teamByUser, setTeamByUser] = useState<Record<string, PickupTeam>>({});
+  const [ratings, setRatings] = useState<Record<string, number>>({});
+  // True once the admin has moved anyone by hand; a late-arriving rating never overwrites their choices.
+  const touched = useRef(false);
+
+  // Players with their exact rating (display decimal, else the half star). Unrated players stay unrated and count as the field average.
+  const rated: BalancePlayer[] = useMemo(
+    () => players.map((p) => ({ id: p.id, playing_position: p.playing_position, rating: ratings[p.id] ?? null })),
+    [players, ratings],
+  );
 
   useEffect(() => {
     if (!visible) return;
+    touched.current = false;
     setTotalTeams(2);
+    setRatings({});
     setTeamByUser(autoBalanceTeams(players, 2));
-  }, [visible, players]);
+    if (!supabase || players.length === 0) return;
+    let live = true;
+    void fetchPlayerCards(supabase, players.map((p) => p.id), { withExact: true }).then((cards) => {
+      if (!live) return;
+      const next: Record<string, number> = {};
+      for (const [id, c] of cards) next[id] = c.exact ?? c.star;
+      setRatings(next);
+    });
+    return () => {
+      live = false;
+    };
+  }, [visible, players, supabase]);
+
+  // Ratings arrived: balance again with them, unless the admin already changed something.
+  useEffect(() => {
+    if (!visible || touched.current || Object.keys(ratings).length === 0) return;
+    setTeamByUser(autoBalanceTeams(rated, totalTeams));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ratings]);
 
   const teams: PickupTeam[] = totalTeams === 3 ? ["A", "B", "C"] : ["A", "B"];
+  // Admin only: how even the teams are right now, including after manual changes.
+  const balanceLine = teamBalanceLine(rated, teamByUser, totalTeams);
 
   function rebalanceTeams() {
     void hapticTap();
-    setTeamByUser(autoBalanceTeams(players, totalTeams));
+    touched.current = false;
+    setTeamByUser(autoBalanceTeams(rated, totalTeams));
   }
 
   function setPlayerTeam(userId: string, team: PickupTeam) {
+    touched.current = true;
     setTeamByUser((cur) => ({ ...cur, [userId]: team }));
   }
 
@@ -92,7 +128,7 @@ export default function TeamAssignmentSheet({
               <FontAwesome name="times" size={20} color={themeColor().text} />
             </Pressable>
           </View>
-          <Text style={styles.subtitle}>Auto-balance by position, or tap a team chip to reassign.</Text>
+          <Text style={styles.subtitle}>Auto-balance by position and rating, or tap a team chip to reassign.</Text>
           <View style={styles.teamToggleRow}>
             {([2, 3] as const).map((n) => {
               const active = totalTeams === n;
@@ -102,7 +138,8 @@ export default function TeamAssignmentSheet({
                   onPress={() => {
                     void hapticTap();
                     setTotalTeams(n);
-                    setTeamByUser(autoBalanceTeams(players, n));
+                    touched.current = false;
+                    setTeamByUser(autoBalanceTeams(rated, n));
                   }}
                   style={({ pressed }) => [styles.teamToggle, active && styles.teamToggleActive, pressed && { opacity: 0.9 }]}
                 >
@@ -145,6 +182,7 @@ export default function TeamAssignmentSheet({
               </View>
             ))}
           </ScrollView>
+          {balanceLine ? <Text style={styles.balanceLine}>{balanceLine}</Text> : null}
           <Pressable
             disabled={busy || players.length === 0}
             onPress={() => {
@@ -180,6 +218,7 @@ function make_styles() {
   sheetHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
   sheetTitle: { color: themeColor().text, fontSize: 20, ...headline },
   subtitle: { color: themeColor().muted, lineHeight: 20, marginBottom: 12, fontSize: 13, fontFamily: "Inter_400Regular" },
+  balanceLine: { color: themeColor().muted, fontSize: 12, fontFamily: "Inter_600SemiBold", fontWeight: "600", marginBottom: 10 },
   teamToggleRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12, alignItems: "center" },
   teamToggle: {
     paddingVertical: 8,
