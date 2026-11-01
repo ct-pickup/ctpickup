@@ -1,4 +1,5 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { WOMENS_SAVE_ERROR, WOMENS_UNAVAILABLE } from "@/lib/womensLeaderboardCopy";
 import Constants from "expo-constants";
 import * as Device from "expo-device";
 import * as LocalAuthentication from "expo-local-authentication";
@@ -225,6 +226,9 @@ export default function SettingsScreen() {
   const [hostInvitesEnabled, setHostInvitesEnabled] = useState(true);
   const [hostInvitesBusy, setHostInvitesBusy] = useState(false);
   const [hostInvitesMsg, setHostInvitesMsg] = useState<string | null>(null);
+  const [womensOptIn, setWomensOptIn] = useState(false);
+  const [womensOptInBusy, setWomensOptInBusy] = useState(false);
+  const [womensOptInMsg, setWomensOptInMsg] = useState<string | null>(null);
   const [maxDriveMinutes, setMaxDriveMinutes] = useState(DEFAULT_MAX_DRIVE_MINUTES);
   const [maxDriveBusy, setMaxDriveBusy] = useState(false);
   const [maxDriveMsg, setMaxDriveMsg] = useState<string | null>(null);
@@ -468,6 +472,18 @@ export default function SettingsScreen() {
     }
   }, [isReady, supabase, session?.user?.id]);
 
+  // Women's leaderboard opt-in. Off unless the player turned it on; a missing column (migration not applied) reads as off.
+  const loadWomensOptIn = useCallback(async () => {
+    const uid = session?.user?.id;
+    if (!isReady || !supabase || !uid) return;
+    const { data, error } = await supabase.from("profiles").select("womens_leaderboard_opt_in").eq("id", uid).maybeSingle();
+    if (error) {
+      setWomensOptIn(false);
+      return;
+    }
+    setWomensOptIn((data as { womens_leaderboard_opt_in?: boolean | null } | null)?.womens_leaderboard_opt_in === true);
+  }, [isReady, supabase, session?.user?.id]);
+
   // Separate from loadProfile so a pending allow_host_invites migration cannot break the main profile load.
   const loadHostInvitePref = useCallback(async () => {
     const uid = session?.user?.id;
@@ -575,8 +591,9 @@ export default function SettingsScreen() {
     useCallback(() => {
       void loadProfile();
       void loadHostInvitePref();
+      void loadWomensOptIn();
       void loadWaiverStatus();
-    }, [loadProfile, loadHostInvitePref, loadWaiverStatus]),
+    }, [loadProfile, loadHostInvitePref, loadWomensOptIn, loadWaiverStatus]),
   );
 
   useEffect(() => {
@@ -1052,6 +1069,35 @@ export default function SettingsScreen() {
     }
   }
 
+  async function onToggleWomensOptIn(next: boolean) {
+    if (womensOptInBusy) return;
+    setWomensOptInMsg(null);
+    const uid = session?.user?.id;
+    if (!supabase || !uid) {
+      setWomensOptInMsg("Sign in again to change this.");
+      return;
+    }
+    const prev = womensOptIn;
+    setWomensOptIn(next);
+    setWomensOptInBusy(true);
+    try {
+      const res = await supabase
+        .from("profiles")
+        .update({ womens_leaderboard_opt_in: next, updated_at: new Date().toISOString() })
+        .eq("id", uid)
+        .select("id");
+      if (res.error || !res.data?.length) {
+        setWomensOptIn(prev);
+        setWomensOptInMsg(res.error && supabaseLooksLikeMissingColumn(res.error, "womens_leaderboard_opt_in") ? WOMENS_UNAVAILABLE : WOMENS_SAVE_ERROR);
+      }
+    } catch {
+      setWomensOptIn(prev);
+      setWomensOptInMsg(WOMENS_SAVE_ERROR);
+    } finally {
+      setWomensOptInBusy(false);
+    }
+  }
+
   async function onToggleBiometrics(next: boolean) {
     setLockMsg(null);
     if (!next) {
@@ -1349,6 +1395,11 @@ export default function SettingsScreen() {
               hostInvitesMsg={hostInvitesMsg}
               onToggleHostInvites={(v) => void onToggleHostInvites(v)}
               hostInvitesDisabled={!accessToken}
+              womensOptIn={womensOptIn}
+              womensOptInBusy={womensOptInBusy}
+              womensOptInMsg={womensOptInMsg}
+              onToggleWomensOptIn={(v) => void onToggleWomensOptIn(v)}
+              womensOptInDisabled={!accessToken}
               maxDriveMinutes={maxDriveMinutes}
               maxDriveBusy={maxDriveBusy}
               maxDriveMsg={maxDriveMsg}

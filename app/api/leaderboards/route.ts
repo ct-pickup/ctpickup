@@ -9,6 +9,7 @@ import { currentSeason } from "@/lib/pickup/points";
 import { isLegacyMobileClient, LEGACY_TIER_RATING_COLUMNS, legacyTierRowFields } from "@/lib/api/appVersion";
 import { capRanked, LEADERBOARD_TOP_N } from "@/lib/leaderboards/cap";
 import { sortStarRows } from "@/lib/leaderboards/starOrder";
+import { loadWomensOptInIds, parseLeaderboardScope } from "@/lib/leaderboards/womensList";
 import { loadExactRatings } from "@/lib/ratings/exactRatings";
 import { loadPlayHistory } from "@/lib/match/compatibilityData";
 import { loadRecordSummaries, summaryFor, type PlayerRecordSummary } from "@/lib/records/playerRecord";
@@ -462,6 +463,8 @@ async function fetchStarRanking(
   profiles: ProfileRow[],
   records: Map<string, PlayerRecordSummary>,
   region: string | null,
+  /** When set, only these players are ranked (the women's list). Ranks then start at 1 inside that list. */
+  onlyIds: ReadonlySet<string> | null = null,
 ): Promise<TierLeaderboardRow[]> {
   const byId = new Map(profiles.map((p) => [p.id, p] as const));
   type RatingRow = { user_id: string; sessions: number | null; star_rating?: number | string | null; star_provisional?: boolean | null };
@@ -489,6 +492,7 @@ async function fetchStarRanking(
   for (const r of ratings) {
     const p = byId.get(r.user_id);
     if (!p || !passesRegionFilter(p.nearest_venue, region)) continue;
+    if (onlyIds && !onlyIds.has(r.user_id)) continue;
     const star = r.star_rating == null ? null : Number(r.star_rating);
     const rec = summaryFor(records, r.user_id);
     out.push({
@@ -547,6 +551,8 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const region = parseRegion(url.searchParams.get("region"));
+  // scope=women: the Stars list for players who opted in to the women's leaderboard (new app only; ignored for v1.3.5).
+  const scope = parseLeaderboardScope(url.searchParams.get("scope"));
 
   // Optional sign-in: with a valid token the response also carries the requester's own rank and the players they
   // have played with. Without one (the v1.3.5 app, web) only the top rows are returned.
@@ -790,7 +796,7 @@ export async function GET(req: Request) {
     try {
       // TODO: Remove after v1.3.5 usage drops to near zero once the new build ships; target 2026-12-01.
       if (records) {
-        tiers = await fetchStarRanking(admin, profiles, records, region);
+        tiers = await fetchStarRanking(admin, profiles, records, region, scope === "women" ? await loadWomensOptInIds(admin) : null);
       } else {
         tiers = await fetchTierLeaderboard(admin, region, isLegacyMobileClient(req));
       }
