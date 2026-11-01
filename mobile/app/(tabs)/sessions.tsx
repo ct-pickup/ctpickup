@@ -10,7 +10,7 @@ import { EventsPanel } from "@/components/fields/EventsPanel";
 import { FieldsPanel } from "@/components/fields/FieldsPanel";
 import { useFieldPhotos } from "@/components/photo";
 import { usePlayedWith } from "@/components/pickup/PlayedWithRow";
-import { MatchLogRow, SeasonHeaderCard } from "@/components/season/SeasonPieces";
+import { MatchLogRow, SeasonHeaderCard, SeasonRatingCard } from "@/components/season/SeasonPieces";
 import { toggleDevPreview, useDevPreview } from "@/lib/devPreview";
 import { useTrackOnce } from "@/lib/analytics/helpers";
 import { fetchBestGames, type BestGame, type PlayedWithSummary } from "@/lib/matchApi";
@@ -212,6 +212,7 @@ export default function GamesTabScreen() {
           </View>
         ) : (
           <>
+            <SeasonRatingCard card={season.card} onPress={() => push("/(tabs)/account")} />
             {hasPlayed ? (
               <SeasonHeaderCard
                 wins={season.wins}

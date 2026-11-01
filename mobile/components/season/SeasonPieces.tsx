@@ -1,7 +1,10 @@
 import { Image as CachedImage } from "expo-image";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
+import { RatingBlock } from "@/components/profile/RatingBlock";
 import { StarRating } from "@/components/StarRating";
+import { seasonRatingCard } from "@/lib/seasonRatingCardCore";
+import { seasonStatsView } from "@/lib/seasonStatLine";
 import { dateBlockEt, recordCaption, recordLine, type Outcome } from "@/lib/season";
 import type { PastGame } from "@/lib/seasonData";
 import type { PlayerCard } from "@/lib/starRatings";
@@ -47,6 +50,23 @@ function Stat({ value, label }: { value: string; label: string }) {
   );
 }
 
+/** Small rating card at the top of "Your season". Renders nothing without a rating. Tap opens the profile. */
+export function SeasonRatingCard({ card, onPress }: { card: PlayerCard | null; onPress: () => void }) {
+  useThemedStyles(publish_styles);
+  const model = seasonRatingCard(card);
+  if (!model) return null;
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Your rating ${model.display.number}${model.provisional ? ", provisional" : ""}. Opens your profile.`}
+      style={({ pressed }) => [styles.ratingCard, pressed && { opacity: 0.85 }]}
+    >
+      <RatingBlock compact star={model.star} exact={model.exact} provisional={model.provisional} display={model.display} />
+    </Pressable>
+  );
+}
+
 export function SeasonHeaderCard({
   wins,
   losses,
@@ -67,6 +87,7 @@ export function SeasonHeaderCard({
   form: Outcome[];
 }) {
   useThemedStyles(publish_styles);
+  const statsView = seasonStatsView(points);
   return (
     <View style={styles.headerCard}>
       {card ? (
@@ -80,9 +101,17 @@ export function SeasonHeaderCard({
       <View style={styles.statsRow}>
         <Stat value={String(games)} label="Games" />
         <View style={styles.statDivider} />
-        <Stat value={String(potdCount)} label="Player of the Day" />
-        <View style={styles.statDivider} />
-        <Stat value={points == null ? "\u2014" : points.toLocaleString()} label="Season pts" />
+        {statsView.kind === "line" ? (
+          <View style={styles.seasonLineWrap}>
+            <Text style={styles.seasonLine}>{statsView.text}</Text>
+          </View>
+        ) : (
+          <>
+            <Stat value={String(potdCount)} label="Player of the Day" />
+            <View style={styles.statDivider} />
+            <Stat value={points == null ? "\u2014" : points.toLocaleString()} label="Season pts" />
+          </>
+        )}
       </View>
 
       {form.length > 0 ? (
@@ -205,6 +234,9 @@ function make_styles() {
     stat: { flex: 1, alignItems: "center", gap: 2 },
     statValue: { fontSize: 20, ...headline, color: themeColor().text },
     statLabel: { fontSize: 12, fontFamily: "Inter_500Medium", color: themeColor().muted },
+    ratingCard: { padding: 12, borderRadius: radius.card, backgroundColor: themeColor().inkSurface, borderWidth: StyleSheet.hairlineWidth, borderColor: themeColor().line, marginBottom: 12 },
+    seasonLineWrap: { flex: 2, justifyContent: "center", paddingHorizontal: 8 },
+    seasonLine: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600", textAlign: "center" },
     statDivider: { width: StyleSheet.hairlineWidth, alignSelf: "stretch", backgroundColor: themeColor().line },
     formRow: { marginTop: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
     formLabel: { fontSize: 13, fontFamily: "Inter_500Medium", color: themeColor().muted },
