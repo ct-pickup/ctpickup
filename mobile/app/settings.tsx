@@ -1,5 +1,5 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { WOMENS_SAVE_ERROR, WOMENS_UNAVAILABLE } from "@/lib/womensLeaderboardCopy";
+import { WOMENS_SAVE_ERROR, womensOptInErrorMessage } from "@/lib/womensLeaderboardCopy";
 import Constants from "expo-constants";
 import * as Device from "expo-device";
 import * as LocalAuthentication from "expo-local-authentication";
@@ -472,16 +472,13 @@ export default function SettingsScreen() {
     }
   }, [isReady, supabase, session?.user?.id]);
 
-  // Women's leaderboard opt-in. Off unless the player turned it on; a missing column (migration not applied) reads as off.
+  // Women's leaderboard opt-in lives in its own private table: a row means opted in, no row means not. Only the owner can read their row.
+  // A missing table (migration not applied) reads as off.
   const loadWomensOptIn = useCallback(async () => {
     const uid = session?.user?.id;
     if (!isReady || !supabase || !uid) return;
-    const { data, error } = await supabase.from("profiles").select("womens_leaderboard_opt_in").eq("id", uid).maybeSingle();
-    if (error) {
-      setWomensOptIn(false);
-      return;
-    }
-    setWomensOptIn((data as { womens_leaderboard_opt_in?: boolean | null } | null)?.womens_leaderboard_opt_in === true);
+    const { data, error } = await supabase.from("womens_leaderboard_opt_in").select("user_id").eq("user_id", uid).maybeSingle();
+    setWomensOptIn(!error && Boolean(data));
   }, [isReady, supabase, session?.user?.id]);
 
   // Separate from loadProfile so a pending allow_host_invites migration cannot break the main profile load.
@@ -1081,14 +1078,13 @@ export default function SettingsScreen() {
     setWomensOptIn(next);
     setWomensOptInBusy(true);
     try {
-      const res = await supabase
-        .from("profiles")
-        .update({ womens_leaderboard_opt_in: next, updated_at: new Date().toISOString() })
-        .eq("id", uid)
-        .select("id");
-      if (res.error || !res.data?.length) {
+      // Opt in = insert my own row (already there counts as done). Opt out = delete my own row.
+      const res = next
+        ? await supabase.from("womens_leaderboard_opt_in").insert({ user_id: uid })
+        : await supabase.from("womens_leaderboard_opt_in").delete().eq("user_id", uid);
+      if (res.error && res.error.code !== "23505") {
         setWomensOptIn(prev);
-        setWomensOptInMsg(res.error && supabaseLooksLikeMissingColumn(res.error, "womens_leaderboard_opt_in") ? WOMENS_UNAVAILABLE : WOMENS_SAVE_ERROR);
+        setWomensOptInMsg(womensOptInErrorMessage(res.error));
       }
     } catch {
       setWomensOptIn(prev);

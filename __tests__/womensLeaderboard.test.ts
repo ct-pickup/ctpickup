@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { parseLeaderboardScope, loadWomensOptInIds } from "../lib/leaderboards/womensList";
@@ -138,8 +139,8 @@ function player(id: string, optIn: boolean, star: number, exact: number, games: 
     gender: "female",
     sex: "female",
     gender_other: "secret-other",
-    womens_leaderboard_opt_in: optIn,
   });
+  if (optIn) h.db.rows("womens_leaderboard_opt_in").push({ user_id: id, created_at: "2026-11-01T00:00:00Z" });
   h.db.rows("player_ratings").push({ user_id: id, sessions: games, star_rating: star, star_provisional: games < 5, score: 80, tier: "gold", reliability: 90, verification: "document" });
   h.db.rows("player_cards").push({ user_id: id, rating_exact: exact, rated_games: games });
 }
@@ -193,7 +194,7 @@ describe("scope=women", () => {
     expect(body.tiers.length).toBe(6);
   });
   it("is empty (a friendly empty state in the app) when nobody has opted in", async () => {
-    for (const r of h.db.rows("profiles")) r.womens_leaderboard_opt_in = false;
+    h.db.tables["womens_leaderboard_opt_in"] = [];
     const body = await (await get("?scope=women")).json();
     expect(body.tiers).toEqual([]);
     expect(body.totals.tiers).toBe(0);
@@ -205,13 +206,18 @@ describe("opt-in helpers", () => {
     expect(parseLeaderboardScope("women")).toBe("women");
     for (const v of [null, undefined, "", "all", "Women", "men", "gender"]) expect(parseLeaderboardScope(v)).toBe("all");
   });
-  it("reads only the opt-in flag, and returns nobody when the column does not exist yet", async () => {
+  it("reads only the opt-in table, and returns nobody when the table does not exist yet", async () => {
     expect([...(await loadWomensOptInIds(h.db as never))].sort()).toEqual(["a", "b", "d", "f"]);
-    const broken = { from: () => ({ select: () => ({ eq: () => ({ order: () => ({ range: async () => ({ data: null, error: { message: "column profiles.womens_leaderboard_opt_in does not exist" } }) }) }) }) }) };
+    const broken = { from: () => ({ select: () => ({ order: () => ({ range: async () => ({ data: null, error: { message: 'relation "public.womens_leaderboard_opt_in" does not exist' } }) }) }) }) };
     expect((await loadWomensOptInIds(broken as never)).size).toBe(0);
   });
-  it("a profile without the flag set is not on the list (default false)", async () => {
+  it("a player with no row is not on the list (default is not opted in)", async () => {
     h.db.rows("profiles").push({ id: "g", approved: true, is_banned: false });
     expect([...(await loadWomensOptInIds(h.db as never))]).not.toContain("g");
+  });
+  it("the leaderboard route reads the table through the service role client only", async () => {
+    const src = readFileSync(new URL("../app/api/leaderboards/route.ts", import.meta.url), "utf8");
+    expect(src).toMatch(/loadWomensOptInIds\(admin\)/);
+    expect(src).not.toMatch(/womens_leaderboard_opt_in/);
   });
 });

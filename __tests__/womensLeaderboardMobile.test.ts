@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import { parseWomenRows } from "../mobile/lib/womenRows";
@@ -9,6 +10,7 @@ import {
   WOMENS_SWITCH_LABEL,
   WOMENS_TAB_LABEL,
   WOMENS_UNAVAILABLE,
+  womensOptInErrorMessage,
 } from "../mobile/lib/womensLeaderboardCopy";
 
 describe("women's leaderboard copy", () => {
@@ -26,6 +28,22 @@ describe("women's leaderboard copy", () => {
     expect(WOMENS_EMPTY_TITLE).toBe("No one here yet");
     expect(WOMENS_EMPTY_BODY).toMatch(/Settings/);
     expect(WOMENS_EMPTY_BODY).toMatch(/choice/);
+  });
+});
+
+describe("opt-in switch errors", () => {
+  it("says the setting is not available yet when the table is missing, else a plain save error", () => {
+    expect(womensOptInErrorMessage({ code: "42P01", message: "relation does not exist" })).toBe(WOMENS_UNAVAILABLE);
+    expect(womensOptInErrorMessage({ code: "PGRST205", message: "Could not find the table" })).toBe(WOMENS_UNAVAILABLE);
+    expect(womensOptInErrorMessage({ code: "42501", message: "new row violates row-level security policy" })).toBe(WOMENS_SAVE_ERROR);
+    expect(womensOptInErrorMessage(null)).toBe(WOMENS_SAVE_ERROR);
+  });
+  it("the settings screen opts in by inserting the player's own row and out by deleting it, never touching profiles or gender", () => {
+    const src = readFileSync(new URL("../mobile/app/settings.tsx", import.meta.url), "utf8");
+    const body = src.slice(src.indexOf("async function onToggleWomensOptIn"), src.indexOf("async function onToggleBiometrics"));
+    expect(body).toMatch(/from\("womens_leaderboard_opt_in"\)\.insert\(\{ user_id: uid \}\)/);
+    expect(body).toMatch(/from\("womens_leaderboard_opt_in"\)\.delete\(\)\.eq\("user_id", uid\)/);
+    expect(body).not.toMatch(/profiles|gender|sex/);
   });
 });
 
