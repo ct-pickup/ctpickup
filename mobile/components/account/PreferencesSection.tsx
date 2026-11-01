@@ -1,4 +1,5 @@
 import Slider from "@react-native-community/slider";
+import { WOMENS_SWITCH_HELP, WOMENS_SWITCH_LABEL } from "@/lib/womensLeaderboardCopy";
 import { ActivityIndicator, Switch, Text, View } from "react-native";
 import { accountStyles as styles, publish_accountStyles } from "./accountStyles";
 
@@ -19,6 +20,11 @@ type Props = {
   hostInvitesMsg: string | null;
   onToggleHostInvites: (next: boolean) => void;
   hostInvitesDisabled: boolean;
+  womensOptIn: boolean;
+  womensOptInBusy: boolean;
+  womensOptInMsg: string | null;
+  onToggleWomensOptIn: (next: boolean) => void;
+  womensOptInDisabled: boolean;
   maxDriveMinutes: number;
   maxDriveBusy: boolean;
   maxDriveMsg: string | null;
@@ -47,6 +53,11 @@ export function PreferencesSection({
   hostInvitesMsg,
   onToggleHostInvites,
   hostInvitesDisabled,
+  womensOptIn,
+  womensOptInBusy,
+  womensOptInMsg,
+  onToggleWomensOptIn,
+  womensOptInDisabled,
   maxDriveMinutes,
   maxDriveBusy,
   maxDriveMsg,
@@ -110,6 +121,22 @@ export function PreferencesSection({
           />
         </View>
         {hostInvitesMsg ? <Text style={styles.msg}>{hostInvitesMsg}</Text> : null}
+
+        <View style={[styles.rowBetween, styles.marketingPushRow]}>
+          <View style={{ flex: 1, paddingRight: 12 }}>
+            <Text style={styles.fieldLabelStrong}>{WOMENS_SWITCH_LABEL}</Text>
+            <Text style={styles.bioHint}>{WOMENS_SWITCH_HELP}</Text>
+          </View>
+          <Switch
+            value={womensOptIn}
+            onValueChange={onToggleWomensOptIn}
+            disabled={womensOptInBusy || womensOptInDisabled}
+            trackColor={{ false: themeColor().overlayStrong, true: themeColor().pitch }}
+            thumbColor={themeColor().text}
+            accessibilityLabel={WOMENS_SWITCH_LABEL}
+          />
+        </View>
+        {womensOptInMsg ? <Text style={styles.msg}>{womensOptInMsg}</Text> : null}
 
         <View style={styles.maxDriveBlock}>
           <View style={styles.maxDriveHeader}>

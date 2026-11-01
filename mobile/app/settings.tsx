@@ -1,4 +1,5 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { WOMENS_SAVE_ERROR, womensOptInErrorMessage } from "@/lib/womensLeaderboardCopy";
 import Constants from "expo-constants";
 import * as Device from "expo-device";
 import * as LocalAuthentication from "expo-local-authentication";
@@ -225,6 +226,9 @@ export default function SettingsScreen() {
   const [hostInvitesEnabled, setHostInvitesEnabled] = useState(true);
   const [hostInvitesBusy, setHostInvitesBusy] = useState(false);
   const [hostInvitesMsg, setHostInvitesMsg] = useState<string | null>(null);
+  const [womensOptIn, setWomensOptIn] = useState(false);
+  const [womensOptInBusy, setWomensOptInBusy] = useState(false);
+  const [womensOptInMsg, setWomensOptInMsg] = useState<string | null>(null);
   const [maxDriveMinutes, setMaxDriveMinutes] = useState(DEFAULT_MAX_DRIVE_MINUTES);
   const [maxDriveBusy, setMaxDriveBusy] = useState(false);
   const [maxDriveMsg, setMaxDriveMsg] = useState<string | null>(null);
@@ -468,6 +472,15 @@ export default function SettingsScreen() {
     }
   }, [isReady, supabase, session?.user?.id]);
 
+  // Women's leaderboard opt-in lives in its own private table: a row means opted in, no row means not. Only the owner can read their row.
+  // A missing table (migration not applied) reads as off.
+  const loadWomensOptIn = useCallback(async () => {
+    const uid = session?.user?.id;
+    if (!isReady || !supabase || !uid) return;
+    const { data, error } = await supabase.from("womens_leaderboard_opt_in").select("user_id").eq("user_id", uid).maybeSingle();
+    setWomensOptIn(!error && Boolean(data));
+  }, [isReady, supabase, session?.user?.id]);
+
   // Separate from loadProfile so a pending allow_host_invites migration cannot break the main profile load.
   const loadHostInvitePref = useCallback(async () => {
     const uid = session?.user?.id;
@@ -575,8 +588,9 @@ export default function SettingsScreen() {
     useCallback(() => {
       void loadProfile();
       void loadHostInvitePref();
+      void loadWomensOptIn();
       void loadWaiverStatus();
-    }, [loadProfile, loadHostInvitePref, loadWaiverStatus]),
+    }, [loadProfile, loadHostInvitePref, loadWomensOptIn, loadWaiverStatus]),
   );
 
   useEffect(() => {
@@ -1052,6 +1066,34 @@ export default function SettingsScreen() {
     }
   }
 
+  async function onToggleWomensOptIn(next: boolean) {
+    if (womensOptInBusy) return;
+    setWomensOptInMsg(null);
+    const uid = session?.user?.id;
+    if (!supabase || !uid) {
+      setWomensOptInMsg("Sign in again to change this.");
+      return;
+    }
+    const prev = womensOptIn;
+    setWomensOptIn(next);
+    setWomensOptInBusy(true);
+    try {
+      // Opt in = insert my own row (already there counts as done). Opt out = delete my own row.
+      const res = next
+        ? await supabase.from("womens_leaderboard_opt_in").insert({ user_id: uid })
+        : await supabase.from("womens_leaderboard_opt_in").delete().eq("user_id", uid);
+      if (res.error && res.error.code !== "23505") {
+        setWomensOptIn(prev);
+        setWomensOptInMsg(womensOptInErrorMessage(res.error));
+      }
+    } catch {
+      setWomensOptIn(prev);
+      setWomensOptInMsg(WOMENS_SAVE_ERROR);
+    } finally {
+      setWomensOptInBusy(false);
+    }
+  }
+
   async function onToggleBiometrics(next: boolean) {
     setLockMsg(null);
     if (!next) {
@@ -1349,6 +1391,11 @@ export default function SettingsScreen() {
               hostInvitesMsg={hostInvitesMsg}
               onToggleHostInvites={(v) => void onToggleHostInvites(v)}
               hostInvitesDisabled={!accessToken}
+              womensOptIn={womensOptIn}
+              womensOptInBusy={womensOptInBusy}
+              womensOptInMsg={womensOptInMsg}
+              onToggleWomensOptIn={(v) => void onToggleWomensOptIn(v)}
+              womensOptInDisabled={!accessToken}
               maxDriveMinutes={maxDriveMinutes}
               maxDriveBusy={maxDriveBusy}
               maxDriveMsg={maxDriveMsg}

@@ -4,7 +4,7 @@ import { hapticTap } from "@/lib/haptics";
 import { Ionicons } from "@expo/vector-icons";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useNavigation, useRouter } from "expo-router";
-import { useCallback, useLayoutEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -25,6 +25,8 @@ import type { DiscoverPlayer } from "@shared/discover";
 import CtPlusPaywall from "@/components/ctplus/CtPlusPaywall";
 import { StarLevelsLink } from "@/components/StarLevels";
 import { CTPLUS_ENABLED } from "@/lib/ctplus/config";
+import { parseWomenRows, type WomenRow } from "@/lib/womenRows";
+import { WOMENS_EMPTY_BODY, WOMENS_EMPTY_TITLE, WOMENS_TAB_LABEL } from "@/lib/womensLeaderboardCopy";
 import { gamesPlayedText, POINTS_LABEL, seasonPointsCaption } from "@/lib/pointsCopy";
 import { SeasonCard } from "@/components/season/SeasonCard";
 import { standingFromRows } from "@/lib/seasonCard";
@@ -36,6 +38,7 @@ import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 type RegionFilter = "ALL" | "CT" | "NY" | "NJ" | "MD";
 type TabId =
   | "stars"
+  | "women"
   | "points"
   | "wins"
   | "sessions"
@@ -101,6 +104,7 @@ let _cachedMyCard: PlayerCard | null = null;
 
 const PRIMARY_TABS: Array<{ id: TabId; label: string; icon?: React.ComponentProps<typeof FontAwesome>["name"] }> = [
   { id: "stars", label: "Stars", icon: "star" },
+  { id: "women", label: WOMENS_TAB_LABEL },
   { id: "points", label: "Points" },
   { id: "wins", label: "Wins" },
   { id: "sessions", label: "Games" },
@@ -242,6 +246,11 @@ export default function LeaderboardsScreen() {
   const [myCard, setMyCard] = useState<PlayerCard | null>(_cachedMyCard);
   const [starsLoading, setStarsLoading] = useState(false);
   const [paywallOpen, setPaywallOpen] = useState(false);
+  // Women tab: the same Stars list for players who opted in, fetched with scope=women when the tab is opened.
+  const [womenPlayers, setWomenPlayers] = useState<WomenRow[]>([]);
+  const [womenLoading, setWomenLoading] = useState(false);
+  const [womenLoaded, setWomenLoaded] = useState(false);
+  const [womenError, setWomenError] = useState<string | null>(null);
   /** Season prize: whether the signed-in player entered. Only their own entry is ever fetched. */
   const [inSeason, setInSeason] = useState(false);
 
@@ -423,6 +432,38 @@ export default function LeaderboardsScreen() {
   useLayoutEffect(() => {
     void load(false);
   }, [load]);
+
+  const loadWomen = useCallback(async () => {
+    const origin = siteOrigin();
+    if (!origin) return;
+    setWomenLoading(true);
+    setWomenError(null);
+    try {
+      const u = new URL(`${origin}/api/leaderboards`);
+      u.searchParams.set("scope", "women");
+      if (region !== "ALL") u.searchParams.set("region", region);
+      const r = await fetch(u.toString(), {
+        method: "GET",
+        headers: { Accept: "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        cache: "no-store",
+      });
+      const json = (await r.json().catch(() => null)) as unknown;
+      if (!r.ok || !isRecord(json)) {
+        setWomenError("Something went wrong. Please try again.");
+        return;
+      }
+      setWomenPlayers(parseWomenRows(json.tiers));
+      setWomenLoaded(true);
+    } catch {
+      setWomenError("Something went wrong. Please try again.");
+    } finally {
+      setWomenLoading(false);
+    }
+  }, [region, token]);
+
+  useEffect(() => {
+    if (tab === "women" && !womenLoaded && !womenLoading && !womenError) void loadWomen();
+  }, [tab, womenLoaded, womenLoading, womenError, loadWomen]);
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerRight: undefined });
@@ -676,6 +717,26 @@ export default function LeaderboardsScreen() {
     );
   }
 
+  function renderWomenTab() {
+    return (
+      <ScrollView
+        style={styles.listFlex}
+        contentContainerStyle={styles.tierContent}
+        refreshControl={<RefreshControl refreshing={womenLoading} onRefresh={() => void loadWomen()} tintColor={themeColor().pitchText} />}
+      >
+        {womenLoading && womenPlayers.length === 0 ? (
+          <ActivityIndicator color={themeColor().pitchText} style={{ marginTop: 32 }} />
+        ) : womenError ? (
+          <ChalkEmptyState graphic="circle" title="Couldn't load this list" body={womenError} style={styles.emptyStatsWrap} />
+        ) : womenPlayers.length === 0 ? (
+          <ChalkEmptyState graphic="circle" title={WOMENS_EMPTY_TITLE} body={WOMENS_EMPTY_BODY} style={styles.emptyStatsWrap} />
+        ) : (
+          <View style={{ gap: 8 }}>{womenPlayers.map((p, i) => renderRankedRow(p, i))}</View>
+        )}
+      </ScrollView>
+    );
+  }
+
   function renderPointsHeader() {
     const seasonLabel = payload?.season ?? "This season";
     const scopes: Array<{ id: PointsScope; label: string }> = [
@@ -837,7 +898,7 @@ export default function LeaderboardsScreen() {
       ) : (
         <>
           {renderTabBar()}
-          <View style={styles.listWrap}>{tab === "stars" ? renderStarsTab() : renderApiTab()}</View>
+          <View style={styles.listWrap}>{tab === "stars" ? renderStarsTab() : tab === "women" ? renderWomenTab() : renderApiTab()}</View>
         </>
       )}
 
