@@ -725,8 +725,9 @@ export default function PlayerProfileScreen() {
             </View>
           )}
         </View>
-        <Text style={styles.heroLabel}>Full name</Text>
-        <Text style={styles.displayName}>{profile.display_name}</Text>
+        <Text style={styles.displayName} accessibilityLabel={`Full name: ${profile.display_name}`}>
+          {profile.display_name}
+        </Text>
         {verified ? (
           <View style={styles.verifiedBadge} accessibilityLabel="Verified">
             <FontAwesome name="check" size={12} color={themeColor().pitchText} />
@@ -1162,13 +1163,6 @@ function make_styles() {
     justifyContent: "center",
   },
   avatarInitialsText: { fontSize: 24, ...headline, color: themeColor().text },
-  heroLabel: {
-    marginTop: 4,
-    fontSize: 13, fontFamily: "Inter_700Bold",
-    fontWeight: "700",
-    color: themeColor().muted,
-    marginBottom: 4,
-  },
   displayName: { fontSize: 24, ...headline, color: themeColor().text, textAlign: "center" },
   verifiedBadge: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 6 },
   verifiedText: { fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600", color: themeColor().pitchText },

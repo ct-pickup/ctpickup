@@ -35,7 +35,7 @@ export default function PlayerGameStats({ userId }: { userId: string }) {
     <View style={styles.card} accessibilityLabel="Game stats">
       <Text style={styles.title}>Games</Text>
       <Row label="Record (W-D-L)" value={<Text style={styles.value}>{recordLabel(stats)}</Text>} />
-      <Row label="Avg partner" value={partner != null ? <StarRating value={partner} size="sm" showValue={false} showLevel={false} /> : <Text style={styles.muted}>Not enough games yet</Text>} />
+      <Row label="Avg teammate" value={partner != null ? <StarRating value={partner} size="sm" showValue={false} showLevel={false} /> : <Text style={styles.muted}>Not enough games yet</Text>} />
       <Row label="Avg opponent" value={opponent != null ? <StarRating value={opponent} size="sm" showValue={false} showLevel={false} /> : <Text style={styles.muted}>Not enough games yet</Text>} />
       <Row
         label="Vs expected"

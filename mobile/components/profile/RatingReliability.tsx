@@ -6,7 +6,7 @@ import { themeColor, useThemedStyles } from "@/theme";
 const RING = 68;
 const STROKE = 6;
 
-/** Reliability ring: the player's show-up reliability, as a percent. */
+/** "Shows up" ring: how reliably the player turns up to games they join, as a percent. */
 export function ReliabilityRing({ percent }: { percent: number }) {
   useThemedStyles(publish_styles);
   const c = themeColor();
@@ -18,7 +18,7 @@ export function ReliabilityRing({ percent }: { percent: number }) {
       style={styles.ring}
       accessible
       accessibilityRole="progressbar"
-      accessibilityLabel={`Reliability ${clamped} percent`}
+      accessibilityLabel={`Shows up ${clamped} percent`}
       accessibilityValue={{ min: 0, max: 100, now: clamped }}
     >
       <Svg width={RING} height={RING} style={StyleSheet.absoluteFill}>
@@ -40,7 +40,7 @@ export function ReliabilityRing({ percent }: { percent: number }) {
         {clamped}%
       </Text>
       <Text allowFontScaling={false} style={styles.label}>
-        Reliability
+        Shows up
       </Text>
     </View>
   );

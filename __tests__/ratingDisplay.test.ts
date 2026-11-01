@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { attendanceRing, gamesSoFar, ratingDisplay, ratingNumber, reliabilityPercent, starsText } from "../mobile/lib/ratingDisplayCore";
+import { attendanceRing, gamesSoFar, ratingDisplay, ratingNumber, reliabilityPercent } from "../mobile/lib/ratingDisplayCore";
 import { STAR_LEVELS_SUBTITLE } from "../shared/starLevels";
 import { fetchPlayerCard, fetchPlayerCards } from "../mobile/lib/starRatings";
 
@@ -18,15 +18,6 @@ describe("ratingNumber", () => {
     expect(ratingNumber(3.5, NaN)).toBe("3.5");
     expect(ratingNumber(3.5, 4.1)).toBe("3.5"); // a stale or wrong decimal never contradicts the stars
     expect(ratingNumber(2, 5.4)).toBe("2.0");
-  });
-});
-
-describe("starsText", () => {
-  it("reads naturally", () => {
-    expect(starsText(3.5)).toBe("3.5 stars");
-    expect(starsText(4)).toBe("4.0 stars");
-    expect(starsText(1)).toBe("1 star");
-    expect(starsText(0.5)).toBe("0.5 stars");
   });
 });
 
@@ -78,7 +69,7 @@ describe("attendanceRing", () => {
 describe("ratingDisplay", () => {
   const base = { star: 3.5, exact: 3.62, ratedGames: 3, settledGames: 5, attendanceReliability: 92, provisional: true };
   it("builds the provisional block: ring is attendance, bar is rating confidence with no percent", () => {
-    expect(ratingDisplay(base)).toEqual({ number: "3.62", starsText: "3.5 stars", reliability: 92, settled: false, progress: 0.6, gamesLabel: "3 games so far" });
+    expect(ratingDisplay(base)).toEqual({ number: "3.62", reliability: 92, settled: false, progress: 0.6, gamesLabel: "3 games so far" });
   });
   it("builds the settled block", () => {
     const d = ratingDisplay({ ...base, ratedGames: 9, provisional: false, attendanceReliability: 100 });
@@ -109,15 +100,16 @@ describe("ratingDisplay", () => {
 
 describe("copy", () => {
   it("has no em dash and no tier or wave words", () => {
-    for (const t of [starsText(3.5), gamesSoFar(3), STAR_LEVELS_SUBTITLE]) {
+    for (const t of [gamesSoFar(3), STAR_LEVELS_SUBTITLE]) {
       expect(t).not.toMatch(/—|–|\btier\b|\bwave\b|bronze|silver|gold|platinum|diamond/i);
     }
   });
-  it("labels the ring Reliability and shows no percent on the bar", () => {
+  it("labels the ring Shows up and shows no percent on the bar", () => {
     const ring = readFileSync(new URL("../mobile/components/profile/RatingReliability.tsx", import.meta.url), "utf8");
-    expect(ring).toMatch(/Reliability\s*\n\s*<\/Text>/);
-    expect(ring).not.toMatch(/Reliable\b(?!ity)/);
-    expect(ring).toMatch(/accessibilityLabel=\{`Reliability \$\{clamped\} percent`\}/);
+    expect(ring).toMatch(/Shows up\s*\n\s*<\/Text>/);
+    expect(ring).not.toMatch(/>\s*Reliab/);
+    expect(ring).not.toMatch(/accessibilityLabel=\{`Reliab/);
+    expect(ring).toMatch(/accessibilityLabel=\{`Shows up \$\{clamped\} percent`\}/);
     // The bar component has no percent: its only text is Provisional, Settled and the games line.
     const bar = ring.slice(ring.indexOf("export function SettleProgress"), ring.indexOf("function make_styles"));
     const withoutFillWidth = bar.split("\n").filter((l) => !l.includes("width:")).join("\n");

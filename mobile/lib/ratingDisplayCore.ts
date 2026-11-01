@@ -1,5 +1,5 @@
 /**
- * Pure helpers for the profile rating block: the exact two decimal number, "X stars", reliability and the settle progress.
+ * Pure helpers for the profile rating block: the exact two decimal number, the show-up ring and the settle progress.
  * No network, no theme. Stars always come from the stored half star; the decimal is only a more exact view of the same rating.
  */
 export type RatingInput = {
@@ -17,8 +17,6 @@ export type RatingInput = {
 export type RatingDisplay = {
   /** "3.62", or "3.5" (one decimal) when the exact rating is not available. */
   number: string;
-  /** "3.5 stars", "1 star". */
-  starsText: string;
   /** Show-up reliability for the ring, 0 to 100. Null (ring hidden) with 0 rated games or when the column is missing. */
   reliability: number | null;
   settled: boolean;
@@ -33,10 +31,6 @@ const finite = (v: unknown): v is number => typeof v === "number" && Number.isFi
 /** The number a half star player sees. Falls back to one decimal of the star so the old display survives a missing migration. */
 export function ratingNumber(star: number, exact: number | null | undefined): string {
   return finite(exact) && exact >= 0.5 && exact <= 5 && Math.round(exact * 2) / 2 === star ? exact.toFixed(2) : star.toFixed(1);
-}
-
-export function starsText(star: number): string {
-  return star === 1 ? "1 star" : `${star.toFixed(1)} stars`;
 }
 
 /** Share of the games needed to settle that the player has, 0 to 100. 100 exactly when the provisional rule stops applying. */
@@ -63,7 +57,6 @@ export function ratingDisplay(r: RatingInput): RatingDisplay {
   const known = confidence != null && finite(r.ratedGames);
   return {
     number: ratingNumber(r.star, r.exact),
-    starsText: starsText(r.star),
     reliability: attendanceRing(r.attendanceReliability, r.ratedGames),
     // Settled follows the stored flag; if the counts disagree with it, the flag wins for the label.
     settled: !r.provisional,

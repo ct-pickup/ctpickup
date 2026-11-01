@@ -57,9 +57,6 @@ export function RatingBlock({ star, provisional, verified, level, display, exact
       </View>
       <View style={styles.starsRow}>
         <StarRating value={star} exact={exact} provisional={provisional} px={20} showValue={false} showLevel={false} tone="onPhoto" />
-        <Text allowFontScaling={false} style={styles.stars}>
-          {display.starsText}
-        </Text>
         {verified ? (
           <View style={styles.verified}>
             <FontAwesome name="check" size={10} color={c.onInk} />
@@ -87,7 +84,6 @@ function make_styles() {
     numberRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
     exactNumber: { ...ratingNumeral(68), color: c.pitch },
     starsRow: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
-    stars: { color: c.onInk, fontSize: 15, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
     small: { color: c.onInk, opacity: 0.8, fontSize: 11, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
     verified: { flexDirection: "row", alignItems: "center", gap: 3 },
   });
