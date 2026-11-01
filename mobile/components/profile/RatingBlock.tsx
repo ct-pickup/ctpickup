@@ -16,15 +16,37 @@ type Props = {
   display: RatingDisplay;
   /** Exact rating, so the stars fill continuously. */
   exact?: number | null;
+  /**
+   * Small version for "Your season": the exact number, the stars and, if it applies, the Provisional label. Nothing else
+   * (no ring, bar, level or Verified chip). `provisional` then only controls that label; the stars are never dimmed.
+   */
+  compact?: boolean;
 };
 
 /**
  * Profile rating block for the dark card: exact two decimal rating, reliability ring, half star row, "X stars",
  * Provisional to Settled bar with games so far. The stars show the exact value, so there is no rounding note. Only used when the games behind the rating are known.
  */
-export function RatingBlock({ star, provisional, verified, level, display, exact }: Props) {
+export function RatingBlock({ star, provisional, verified, level, display, exact, compact }: Props) {
   useThemedStyles(publish_styles);
   const c = themeColor();
+  if (compact) {
+    return (
+      <View style={styles.compactRow}>
+        <Text allowFontScaling={false} style={styles.compactNumber} accessibilityLabel={`${display.number} rating`}>
+          {display.number}
+        </Text>
+        <View style={styles.compactSide}>
+          <StarRating value={star} exact={exact} px={18} showValue={false} showLevel={false} tone="onPhoto" />
+          {provisional ? (
+            <Text allowFontScaling={false} style={styles.small}>
+              Provisional
+            </Text>
+          ) : null}
+        </View>
+      </View>
+    );
+  }
   return (
     <View style={styles.block}>
       <View style={styles.numberRow}>
@@ -59,6 +81,9 @@ function make_styles() {
   const c = themeColor();
   return StyleSheet.create({
     block: { gap: 6, alignSelf: "stretch" },
+    compactRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+    compactNumber: { ...ratingNumeral(40), color: c.pitch },
+    compactSide: { gap: 4 },
     numberRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
     exactNumber: { ...ratingNumeral(68), color: c.pitch },
     starsRow: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
