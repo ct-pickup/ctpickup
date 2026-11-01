@@ -1,5 +1,6 @@
 "use client";
 
+import { GENDER_LEADERBOARD_HINT } from "@/lib/genderPrivacyCopy";
 import Link from "next/link";
 import { SupportEmailLink } from "@/components/SupportEmailLink";
 import { Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
@@ -772,6 +773,7 @@ function SignupForm({
                         <option value="female">{PROFILE_GENDER_LABELS.female}</option>
                         <option value="other">{PROFILE_GENDER_LABELS.other}</option>
                       </select>
+                      <p className="mt-1 text-caption text-muted">{GENDER_LEADERBOARD_HINT}</p>
                     </div>
 
                     {gender === "other" ? (
