@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { ReliabilityRing, SettleProgress } from "@/components/profile/RatingReliability";
 import { StarRating } from "@/components/StarRating";
-import { ratingNote, type RatingDisplay } from "@/lib/ratingDisplayCore";
+import type { RatingDisplay } from "@/lib/ratingDisplayCore";
 import { ratingNumeral, themeColor, useThemedStyles } from "@/theme";
 
 type Props = {
@@ -12,16 +12,17 @@ type Props = {
   verified?: boolean;
   /** Level name under the stars ("College"), if any. */
   level?: string | null;
-  /** From ratingDisplay(); reliability and gamesLabel must be set. */
+  /** From ratingDisplay(); gamesLabel must be set. The ring appears only when reliability is set. */
   display: RatingDisplay;
-  isOwn: boolean;
+  /** Exact rating, so the stars fill continuously. */
+  exact?: number | null;
 };
 
 /**
  * Profile rating block for the dark card: exact two decimal rating, reliability ring, half star row, "X stars",
- * Provisional to Settled bar with games so far, and the one line note. Only used when the games behind the rating are known.
+ * Provisional to Settled bar with games so far. The stars show the exact value, so there is no rounding note. Only used when the games behind the rating are known.
  */
-export function RatingBlock({ star, provisional, verified, level, display, isOwn }: Props) {
+export function RatingBlock({ star, provisional, verified, level, display, exact }: Props) {
   useThemedStyles(publish_styles);
   const c = themeColor();
   return (
@@ -33,7 +34,7 @@ export function RatingBlock({ star, provisional, verified, level, display, isOwn
         {display.reliability != null ? <ReliabilityRing percent={display.reliability} /> : null}
       </View>
       <View style={styles.starsRow}>
-        <StarRating value={star} provisional={provisional} px={20} showValue={false} showLevel={false} tone="onPhoto" />
+        <StarRating value={star} exact={exact} provisional={provisional} px={20} showValue={false} showLevel={false} tone="onPhoto" />
         <Text allowFontScaling={false} style={styles.stars}>
           {display.starsText}
         </Text>
@@ -50,9 +51,6 @@ export function RatingBlock({ star, provisional, verified, level, display, isOwn
         </Text>
       ) : null}
       {display.progress != null && display.gamesLabel ? <SettleProgress progress={display.progress} gamesLabel={display.gamesLabel} /> : null}
-      <Text allowFontScaling={false} style={styles.note}>
-        {ratingNote(isOwn)}
-      </Text>
     </View>
   );
 }
@@ -67,7 +65,6 @@ function make_styles() {
     stars: { color: c.onInk, fontSize: 15, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
     small: { color: c.onInk, opacity: 0.8, fontSize: 11, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
     verified: { flexDirection: "row", alignItems: "center", gap: 3 },
-    note: { color: c.onInk, opacity: 0.7, fontSize: 11, lineHeight: 15, fontFamily: "Inter_500Medium", fontWeight: "500", marginTop: 4 },
   });
 }
 let styles = make_styles();

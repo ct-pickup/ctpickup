@@ -55,3 +55,7 @@ export function starLevelLabel(star: number | null | undefined): string | null {
   const level = starLevelFor(star);
   return level ? `${level.star.toFixed(1)} · ${level.name}` : null;
 }
+
+/** Subtitle of the "What do stars mean?" sheet. The stars fill to the exact rating; the levels below are half-star steps. */
+export const STAR_LEVELS_SUBTITLE =
+  "Your stars fill to your exact rating, so a 3.35 is three full stars and the fourth about a third full. The rating moves as you play rated games. Each level below is a half-star step.";

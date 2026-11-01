@@ -119,7 +119,7 @@ export default function TrainingDetailScreen() {
       const uniq = Array.from(new Set(ids));
       const [profilesRes, cards] = await Promise.all([
         supabase.from("profiles").select("id,first_name,last_name,username,avatar_url,playing_position").in("id", uniq),
-        fetchPlayerCards(supabase, uniq),
+        fetchPlayerCards(supabase, uniq, { withExact: true }),
       ]);
       for (const row of (profilesRes.data ?? []) as Array<Omit<Person, "card">>) {
         map.set(row.id, { ...row, card: cards.get(row.id) ?? null });
@@ -337,7 +337,7 @@ export default function TrainingDetailScreen() {
               {personName(host)}
             </Text>
             {hostCard ? (
-              <StarRating value={hostCard.star} provisional={hostCard.provisional} size="sm" style={s.hostStars} />
+              <StarRating value={hostCard.star} exact={hostCard.exact} provisional={hostCard.provisional} size="sm" style={s.hostStars} />
             ) : null}
             {host?.playing_position ? <Text style={s.positionText}>{host.playing_position}</Text> : null}
           </View>
@@ -451,7 +451,7 @@ export default function TrainingDetailScreen() {
                         </Text>
                         {card || pos ? (
                           <View style={s.reqMetaRow}>
-                            {card ? <StarRating value={card.star} provisional={card.provisional} size="sm" /> : null}
+                            {card ? <StarRating value={card.star} exact={card.exact} provisional={card.provisional} size="sm" /> : null}
                             {pos ? (
                               <Text style={s.reqMeta} numberOfLines={1}>
                                 {pos}

@@ -6,7 +6,7 @@ import { themeColor, useThemedStyles } from "@/theme";
 const RING = 68;
 const STROKE = 6;
 
-/** Reliability ring: how many of the games needed to settle a rating the player has, as a percent. */
+/** Reliability ring: the player's show-up reliability, as a percent. */
 export function ReliabilityRing({ percent }: { percent: number }) {
   useThemedStyles(publish_styles);
   const c = themeColor();
@@ -40,7 +40,7 @@ export function ReliabilityRing({ percent }: { percent: number }) {
         {clamped}%
       </Text>
       <Text allowFontScaling={false} style={styles.label}>
-        Reliable
+        Reliability
       </Text>
     </View>
   );
@@ -75,7 +75,7 @@ function make_styles() {
   return StyleSheet.create({
     ring: { width: RING, height: RING, alignItems: "center", justifyContent: "center" },
     pct: { color: c.onInk, fontSize: 16, lineHeight: 18, fontFamily: "Inter_700Bold", fontWeight: "700" },
-    label: { color: c.onInk, opacity: 0.7, fontSize: 9, lineHeight: 11, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+    label: { color: c.onInk, opacity: 0.7, fontSize: 8, lineHeight: 10, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
     barWrap: { marginTop: 10, gap: 4 },
     barLabels: { flexDirection: "row", justifyContent: "space-between" },
     barText: { color: c.onInk, opacity: 0.7, fontSize: 11, fontFamily: "Inter_600SemiBold", fontWeight: "600" },

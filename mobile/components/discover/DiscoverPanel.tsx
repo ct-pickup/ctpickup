@@ -232,7 +232,7 @@ function PlayerTile({ player, onPress }: { player: DiscoverPlayer; onPress: () =
       </Text>
 
       <View style={styles.ratingRow}>
-        <StarRating value={player.star} size="sm" />
+        <StarRating value={player.star} exact={player.ratingExact} size="sm" />
         {player.levelName ? (
           <Text style={styles.levelName} numberOfLines={1}>
             {player.levelName}

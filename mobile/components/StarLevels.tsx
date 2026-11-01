@@ -4,7 +4,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View, type StyleProp, t
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { headline, themeColor, useThemedStyles } from "@/theme";
-import { STAR_LEVELS, starLevelFor, type StarLevel } from "@shared/starLevels";
+import { STAR_LEVELS, STAR_LEVELS_SUBTITLE, starLevelFor, type StarLevel } from "@shared/starLevels";
 
 function LevelRow({ level, selected, onPress }: { level: StarLevel; selected?: boolean; onPress?: () => void }) {
   const body = (
@@ -71,7 +71,7 @@ export function StarLevelsSheet({ visible, onClose }: { visible: boolean; onClos
     <Sheet
       visible={visible}
       title="What do stars mean?"
-      subtitle="Your stars show the level you play at. They move as you play rated games."
+      subtitle={STAR_LEVELS_SUBTITLE}
       onClose={onClose}
     >
       {STAR_LEVELS.map((level) => (

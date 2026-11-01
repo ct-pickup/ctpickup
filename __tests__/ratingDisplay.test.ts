@@ -1,6 +1,8 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { gamesSoFar, RATING_NOTE_OTHER, RATING_NOTE_OWN, ratingDisplay, ratingNote, ratingNumber, reliabilityPercent, starsText } from "../mobile/lib/ratingDisplayCore";
+import { attendanceRing, gamesSoFar, ratingDisplay, ratingNumber, reliabilityPercent, starsText } from "../mobile/lib/ratingDisplayCore";
+import { STAR_LEVELS_SUBTITLE } from "../shared/starLevels";
 import { fetchPlayerCard, fetchPlayerCards } from "../mobile/lib/starRatings";
 
 describe("ratingNumber", () => {
@@ -50,78 +52,133 @@ describe("reliabilityPercent", () => {
   });
 });
 
+describe("attendanceRing", () => {
+  it("hides the ring with 0 rated games, even though everyone starts at 92", () => {
+    expect(attendanceRing(92, 0)).toBeNull();
+  });
+  it("shows it from the first rated game", () => {
+    expect(attendanceRing(92, 1)).toBe(92);
+    expect(attendanceRing(92.4, 3)).toBe(92);
+    expect(attendanceRing(85, 12)).toBe(85);
+  });
+  it("is hidden when the column or the games are unknown (migration not applied)", () => {
+    expect(attendanceRing(null, 4)).toBeNull();
+    expect(attendanceRing(undefined, 4)).toBeNull();
+    expect(attendanceRing(92, null)).toBeNull();
+    expect(attendanceRing(92, undefined)).toBeNull();
+    expect(attendanceRing(NaN, 4)).toBeNull();
+  });
+  it("keeps the value inside 0 to 100", () => {
+    expect(attendanceRing(0, 2)).toBe(0);
+    expect(attendanceRing(120, 2)).toBe(100);
+    expect(attendanceRing(-5, 2)).toBe(0);
+  });
+});
+
 describe("ratingDisplay", () => {
-  const base = { star: 3.5, exact: 3.62, ratedGames: 3, settledGames: 5, provisional: true };
-  it("builds the provisional block", () => {
-    expect(ratingDisplay(base)).toEqual({ number: "3.62", starsText: "3.5 stars", reliability: 60, settled: false, progress: 0.6, gamesLabel: "3 games so far" });
+  const base = { star: 3.5, exact: 3.62, ratedGames: 3, settledGames: 5, attendanceReliability: 92, provisional: true };
+  it("builds the provisional block: ring is attendance, bar is rating confidence with no percent", () => {
+    expect(ratingDisplay(base)).toEqual({ number: "3.62", starsText: "3.5 stars", reliability: 92, settled: false, progress: 0.6, gamesLabel: "3 games so far" });
   });
   it("builds the settled block", () => {
-    const d = ratingDisplay({ ...base, ratedGames: 9, provisional: false });
+    const d = ratingDisplay({ ...base, ratedGames: 9, provisional: false, attendanceReliability: 100 });
     expect(d.reliability).toBe(100);
     expect(d.settled).toBe(true);
     expect(d.progress).toBe(1);
     expect(d.gamesLabel).toBe("9 games so far");
   });
-  it("zero games: ring at 0 and no plural slip", () => {
+  it("0 games: the ring is hidden but the bar and the games line stay", () => {
     const d = ratingDisplay({ ...base, ratedGames: 0 });
-    expect(d.reliability).toBe(0);
+    expect(d.reliability).toBeNull();
+    expect(d.progress).toBe(0);
     expect(d.gamesLabel).toBe("0 games so far");
     expect(gamesSoFar(1)).toBe("1 game so far");
   });
-  it("without the migration the ring and bar are hidden and the number is the old one decimal star", () => {
-    const d = ratingDisplay({ star: 3.5, exact: null, ratedGames: null, settledGames: null, provisional: true });
+  it("1 game: the ring shows", () => {
+    expect(ratingDisplay({ ...base, ratedGames: 1 }).reliability).toBe(92);
+  });
+  it("attendance column missing: ring hidden, everything else works", () => {
+    const d = ratingDisplay({ ...base, attendanceReliability: null });
+    expect(d).toMatchObject({ number: "3.62", reliability: null, progress: 0.6, gamesLabel: "3 games so far" });
+  });
+  it("without the earlier migration too: old one decimal star, no ring, no bar", () => {
+    const d = ratingDisplay({ star: 3.5, exact: null, ratedGames: null, settledGames: null, attendanceReliability: null, provisional: true });
     expect(d).toMatchObject({ number: "3.5", reliability: null, progress: null, gamesLabel: null });
   });
 });
 
 describe("copy", () => {
-  it("has the note for own and other profiles, with no em dash and no tier or wave words", () => {
-    expect(ratingNote(true)).toBe("Stars round to the nearest half star. The decimal is your exact rating.");
-    expect(ratingNote(false)).toBe(RATING_NOTE_OTHER);
-    for (const t of [RATING_NOTE_OWN, RATING_NOTE_OTHER, starsText(3.5), gamesSoFar(3)]) {
+  it("has no em dash and no tier or wave words", () => {
+    for (const t of [starsText(3.5), gamesSoFar(3), STAR_LEVELS_SUBTITLE]) {
       expect(t).not.toMatch(/—|–|\btier\b|\bwave\b|bronze|silver|gold|platinum|diamond/i);
     }
   });
+  it("labels the ring Reliability and shows no percent on the bar", () => {
+    const ring = readFileSync(new URL("../mobile/components/profile/RatingReliability.tsx", import.meta.url), "utf8");
+    expect(ring).toMatch(/Reliability\s*\n\s*<\/Text>/);
+    expect(ring).not.toMatch(/Reliable\b(?!ity)/);
+    expect(ring).toMatch(/accessibilityLabel=\{`Reliability \$\{clamped\} percent`\}/);
+    // The bar component has no percent: its only text is Provisional, Settled and the games line.
+    const bar = ring.slice(ring.indexOf("export function SettleProgress"), ring.indexOf("function make_styles"));
+    const withoutFillWidth = bar.split("\n").filter((l) => !l.includes("width:")).join("\n");
+    expect(withoutFillWidth).not.toMatch(/%/);
+    expect(withoutFillWidth).not.toMatch(/percent/i);
+  });
+  it("no longer carries the rounding note", () => {
+    expect(STAR_LEVELS_SUBTITLE).not.toMatch(/round to the nearest/i);
+  });
 });
 
-/** A minimal stand in for the Supabase client: records the selected columns and can fail the extended select. */
-function client(rows: unknown[], failExtended: boolean) {
+/** A minimal stand in for the Supabase client: records the selected columns and fails any select that names a missing column. */
+function client(rows: unknown[], missing: string[]) {
   const selects: string[] = [];
   const supabase = {
     from: () => ({
       select: (cols: string) => {
         selects.push(cols);
-        const bad = failExtended && cols.includes("rating_exact");
-        return { in: async () => (bad ? { data: null, error: { message: "column player_cards.rating_exact does not exist" } } : { data: rows, error: null }) };
+        const bad = missing.find((m) => cols.includes(m));
+        return { in: async () => (bad ? { data: null, error: { message: `column player_cards.${bad} does not exist` } } : { data: rows, error: null }) };
       },
     }),
   };
   return { supabase: supabase as never, selects };
 }
 const row = { user_id: "u1", star_rating: 3.5, star_provisional: true, percentile: 40 };
+const BASE = "user_id,star_rating,star_provisional,percentile";
+const EXACT = `${BASE},rating_exact,rated_games,settled_games`;
 
 describe("fetchPlayerCard", () => {
-  it("reads the exact rating and games when the migration is applied", async () => {
-    const { supabase, selects } = client([{ ...row, rating_exact: "3.62", rated_games: 3, settled_games: 5 }], false);
+  it("reads the exact rating, games and attendance reliability when both migrations are applied", async () => {
+    const { supabase, selects } = client([{ ...row, rating_exact: "3.62", rated_games: 3, settled_games: 5, attendance_reliability: 92 }], []);
     const c = await fetchPlayerCard(supabase, "u1");
-    expect(selects).toHaveLength(1);
-    expect(c).toMatchObject({ star: 3.5, exact: 3.62, ratedGames: 3, settledGames: 5 });
+    expect(selects).toEqual([`${EXACT},attendance_reliability`]);
+    expect(c).toMatchObject({ star: 3.5, exact: 3.62, ratedGames: 3, settledGames: 5, attendanceReliability: 92 });
   });
-  it("falls back to the star columns when the migration is not applied yet", async () => {
-    const { supabase, selects } = client([row], true);
+  it("attendance column missing: keeps the exact rating and games, and the ring has no value", async () => {
+    const { supabase, selects } = client([{ ...row, rating_exact: "3.62", rated_games: 3, settled_games: 5 }], ["attendance_reliability"]);
     const c = await fetchPlayerCard(supabase, "u1");
-    expect(selects).toHaveLength(2);
-    expect(selects[1]).toBe("user_id,star_rating,star_provisional,percentile");
-    expect(c).toMatchObject({ star: 3.5, provisional: true, exact: null, ratedGames: null, settledGames: null });
+    expect(selects).toEqual([`${EXACT},attendance_reliability`, EXACT]);
+    expect(c).toMatchObject({ exact: 3.62, ratedGames: 3, attendanceReliability: null });
   });
-  it("lists (leaderboards, game lists) never ask for the exact columns", async () => {
-    const { supabase, selects } = client([row], false);
+  it("neither migration applied: falls back to the star columns alone", async () => {
+    const { supabase, selects } = client([row], ["rating_exact", "attendance_reliability"]);
+    const c = await fetchPlayerCard(supabase, "u1");
+    expect(selects).toEqual([`${EXACT},attendance_reliability`, EXACT, BASE]);
+    expect(c).toMatchObject({ star: 3.5, provisional: true, exact: null, ratedGames: null, settledGames: null, attendanceReliability: null });
+  });
+  it("never reads the legacy reliability column", async () => {
+    const { supabase, selects } = client([row], []);
+    await fetchPlayerCard(supabase, "u1");
+    for (const sel of selects) expect(sel.split(",")).not.toContain("reliability");
+  });
+  it("lists (leaderboards, game lists) never ask for the exact or attendance columns", async () => {
+    const { supabase, selects } = client([row], []);
     const m = await fetchPlayerCards(supabase, ["u1"]);
-    expect(selects).toEqual(["user_id,star_rating,star_provisional,percentile"]);
+    expect(selects).toEqual([BASE]);
     expect(m.get("u1")?.exact).toBeNull();
   });
   it("returns nothing for a player with no rating row", async () => {
-    const { supabase } = client([], false);
+    const { supabase } = client([], []);
     expect(await fetchPlayerCard(supabase, "u1")).toBeNull();
   });
 });

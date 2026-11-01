@@ -70,7 +70,7 @@ export function SeasonHeaderCard({
   return (
     <View style={styles.headerCard}>
       {card ? (
-        <StarRating value={card.star} provisional={card.provisional} size="sm" style={styles.cornerStars} />
+        <StarRating value={card.star} exact={card.exact} provisional={card.provisional} size="sm" style={styles.cornerStars} />
       ) : null}
       <Text style={styles.record} accessibilityLabel={`Record ${wins} wins, ${losses} losses${draws ? `, ${draws} draws` : ""}`}>
         {recordLine(wins, losses, draws)}

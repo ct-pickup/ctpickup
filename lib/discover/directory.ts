@@ -13,6 +13,7 @@ import {
   type DriveBucket,
   type DirectoryResponse,
 } from "@/shared/discover";
+import { loadExactRatings } from "@/lib/ratings/exactRatings";
 import { starLevelName } from "@/shared/starLevels";
 import { DiscoverError, loadCandidates, loadViewer, positions, type CandidateRow } from "@/lib/discover/discoverService";
 
@@ -166,5 +167,12 @@ export async function directoryPage(admin: SupabaseClient, viewerId: string, q: 
   const candidates = await loadCandidates(admin, viewerId);
   const stars = await starsFor(admin, candidates.map((c) => c.id));
   const entries = candidates.map((c) => toEntry(c, viewer.zip_code, stars.get(c.id) ?? null));
-  return pageDirectory(entries, q);
+  const page = pageDirectory(entries, q);
+  // Only the players on this page need their exact rating.
+  const exact = await loadExactRatings(admin, page.players.map((p) => p.id));
+  for (const p of page.players) {
+    const e = exact.get(p.id);
+    if (e && p.star != null) p.ratingExact = e.exact;
+  }
+  return page;
 }

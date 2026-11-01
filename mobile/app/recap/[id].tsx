@@ -169,7 +169,7 @@ export default function MatchRecapScreen() {
             <Text style={styles.scoreNote}>Result not posted yet</Text>
           )}
           {recap.card ? (
-            <StarRating value={recap.card.star} provisional={recap.card.provisional} size="sm" style={styles.scoreStars} />
+            <StarRating value={recap.card.star} exact={recap.card.exact} provisional={recap.card.provisional} size="sm" style={styles.scoreStars} />
           ) : null}
         </View>
 

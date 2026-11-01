@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { loadExactRatings } from "@/lib/ratings/exactRatings";
 import { distanceFit, internalStar, levelFit, positionGroup, positionLabel } from "@/lib/match/compatibility";
 import { allowsHostInvites, lastInitial, loadPlayHistory, townFromZip, type MatchProfile } from "@/lib/match/compatibilityData";
 import { destinationFromVenueZipCode, estimateDriveMinutesFromZip } from "@/lib/venueDistance";
@@ -225,6 +226,7 @@ async function hydrate(admin: SupabaseClient, viewer: CandidateRow, ids: string[
   const history = await loadPlayHistory(admin, [viewer.id, ...present.map((p) => p.id)]);
   const myTeammates = history.byUser.get(viewer.id)?.playedWith ?? new Set<string>();
 
+  const exact = await loadExactRatings(admin, present.map((p) => p.id));
   return present.map((row) => {
     const theirStar = stars.get(row.id) ?? null;
     const dest = destinationFromVenueZipCode(row.zip_code);
@@ -248,7 +250,10 @@ async function hydrate(admin: SupabaseClient, viewer: CandidateRow, ids: string[
       sameTown: myTown != null && myTown === theirTown,
     });
 
-    return toDiscoverPlayer(row, theirStar, reasons);
+    const player = toDiscoverPlayer(row, theirStar, reasons);
+    const e = exact.get(row.id);
+    if (e && theirStar != null) player.ratingExact = e.exact;
+    return player;
   });
 }
 

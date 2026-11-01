@@ -24,9 +24,7 @@ type Props = {
   shareBusy?: boolean;
   shareDisabled?: boolean;
   /** Exact rating and games from player_cards. Without it (migration not applied) the card shows the one decimal star as before. */
-  exactRating?: { exact?: number | null; ratedGames?: number | null; settledGames?: number | null } | null;
-  /** Whose card this is; only changes the one line note. Defaults to the signed-in player's own. */
-  isOwn?: boolean;
+  exactRating?: { exact?: number | null; ratedGames?: number | null; settledGames?: number | null; attendanceReliability?: number | null } | null;
 };
 
 /**
@@ -43,7 +41,6 @@ export default function ProfileCard({
   shareBusy,
   shareDisabled,
   exactRating,
-  isOwn = true,
 }: Props) {
   useThemedStyles(publish_styles);
   const c = themeColor();
@@ -71,11 +68,12 @@ export default function ProfileCard({
           exact: exactRating?.exact ?? null,
           ratedGames: exactRating?.ratedGames ?? null,
           settledGames: exactRating?.settledGames ?? null,
+          attendanceReliability: exactRating?.attendanceReliability ?? null,
           provisional: data.provisional,
         })
       : null;
   // The new block needs the games behind the rating. Without them keep today's compact row.
-  const full = disp != null && disp.reliability != null && disp.gamesLabel != null;
+  const full = disp != null && disp.gamesLabel != null;
 
   const verifiedChip = data.verified ? (
     <View style={styles.verified}>
@@ -87,14 +85,14 @@ export default function ProfileCard({
   const rating =
     data.star != null && disp ? (
       full ? (
-        <RatingBlock star={data.star} provisional={data.provisional} verified={data.verified} level={level} display={disp} isOwn={isOwn} />
+        <RatingBlock star={data.star} provisional={data.provisional} verified={data.verified} level={level} display={disp} exact={exactRating?.exact ?? null} />
       ) : (
         <View style={styles.ratingRow}>
           <Text allowFontScaling={false} style={styles.bigNumber}>
             {disp.number}
           </Text>
           <View style={styles.ratingSide}>
-            <StarRating value={data.star} provisional={data.provisional} px={20} showValue={false} showLevel={false} tone="onPhoto" />
+            <StarRating value={data.star} exact={exactRating?.exact ?? null} provisional={data.provisional} px={20} showValue={false} showLevel={false} tone="onPhoto" />
             <View style={styles.levelRow}>
               {level ? (
                 <Text allowFontScaling={false} style={styles.level} numberOfLines={1}>
