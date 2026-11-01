@@ -126,7 +126,8 @@ const NEW_APP = { "user-agent": IOS_UA, "x-app-version": "1.7.1" };
 const get = (qs: string, headers: Record<string, string> = NEW_APP) =>
   leaderboardsGET(new Request(`http://test.local/api/leaderboards${qs}`, { headers }));
 
-function player(id: string, optIn: boolean, star: number, exact: number, games: number) {
+/** `games` is rated games (settled rating sessions); `played` is games played: posted results with the player on a team (the "N games played" on the row). */
+function player(id: string, optIn: boolean, star: number, exact: number, games: number, played: number = games) {
   h.db.rows("profiles").push({
     id,
     first_name: id.toUpperCase(),
@@ -143,6 +144,11 @@ function player(id: string, optIn: boolean, star: number, exact: number, games: 
   if (optIn) h.db.rows("womens_leaderboard_opt_in").push({ user_id: id, created_at: "2026-11-01T00:00:00Z" });
   h.db.rows("player_ratings").push({ user_id: id, sessions: games, star_rating: star, star_provisional: games < 5, score: 80, tier: "gold", reliability: 90, verification: "document" });
   h.db.rows("player_cards").push({ user_id: id, rating_exact: exact, rated_games: games });
+  for (let k = 0; k < played; k++) {
+    const run_id = `run-${id}-${k}`;
+    h.db.rows("pickup_run_results").push({ run_id, winning_team: "A" });
+    h.db.rows("pickup_run_team_assignments").push({ run_id, user_id: id, team: "A" });
+  }
 }
 
 beforeEach(() => {
@@ -152,7 +158,7 @@ beforeEach(() => {
   player("a", true, 3.5, 3.38, 2); // Malik
   player("b", true, 3.5, 3.6, 5); // Dylan
   player("c", false, 5, 4.9, 12); // top player who did not opt in
-  player("d", true, 3.5, 3.5, 0); // opted in, no rated games
+  player("d", true, 3.5, 3.5, 0, 0); // opted in, no rated games and no games played
   player("e", false, 3, 3.1, 6);
   player("f", true, 2, 2.0, 4);
 });
@@ -192,6 +198,13 @@ describe("scope=women", () => {
   it("the older app ignores the scope", async () => {
     const body = await (await get("?scope=women", LEGACY)).json();
     expect(body.tiers.length).toBe(6);
+  });
+  it("games played, not rated games, decides who sinks: played but unrated stays in order, rated but never played goes last", async () => {
+    player("g", true, 4.5, 4.55, 0, 3); // 3 games played, 0 rated: ranks first
+    player("h", true, 4, 4.2, 2, 0); // rated, but 0 games played: sinks below everyone who has played
+    const body = await (await get("?scope=women")).json();
+    expect(body.tiers.map((r: { user_id: string }) => r.user_id)).toEqual(["g", "b", "a", "f", "h", "d"]);
+    expect(body.tiers.map((r: { rank: number }) => r.rank)).toEqual([1, 2, 3, 4, 5, 6]);
   });
   it("is empty (a friendly empty state in the app) when nobody has opted in", async () => {
     h.db.tables["womens_leaderboard_opt_in"] = [];
