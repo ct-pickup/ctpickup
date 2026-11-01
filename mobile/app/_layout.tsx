@@ -15,6 +15,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from "expo-router/react-naviga
 import { AppOpeningTheme, clearAppOpeningThemeFlag } from "@/components/AppOpeningTheme";
 import { AppLockOverlay } from "@/components/AppLockOverlay";
 import { CancellationPolicyNotice } from "@/components/CancellationPolicyNotice";
+import { GenderNotice } from "@/components/GenderNotice";
 import { PushRegistrar } from "@/components/PushRegistrar";
 import { PushTapRouter } from "@/components/PushTapRouter";
 import { ReviewModeBanner } from "@/components/ReviewModeBanner";
@@ -545,6 +546,7 @@ function RootLayoutNav() {
                           </Stack>
                         </ThemeProvider>
                         {minVersionBlocked ? null : <CancellationPolicyNotice />}
+                        {minVersionBlocked ? null : <GenderNotice />}
                         <AppOpeningTheme key={openingThemeKey} />
                         <AppLockOverlay />
                       </View>

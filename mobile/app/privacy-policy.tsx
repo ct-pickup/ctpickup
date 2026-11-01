@@ -2,6 +2,7 @@ import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-na
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { PRIVACY_POLICY_LAST_UPDATED } from "@/lib/cancellationPolicyCopy";
+import { PRIVACY_GENDER_BODY, PRIVACY_GENDER_TITLE } from "@/lib/genderPrivacyCopy";
 import { headline, themeColor, useThemedStyles } from "@/theme";
 const SUPPORT_EMAIL = "pickupct@gmail.com";
 
@@ -26,6 +27,10 @@ const POLICY_POINTS: PolicyPoint[] = [
     title: "How we use your information",
     body:
       "We use your information to operate the app, match you with nearby pickup runs and tournaments, process payments, send essential notifications, calculate reliability scores, provide customer support, and improve the platform.",
+  },
+  {
+    title: PRIVACY_GENDER_TITLE,
+    body: PRIVACY_GENDER_BODY,
   },
   {
     title: "Usage data",

@@ -5,12 +5,17 @@ type Client = {
   from: (table: string) => any; // eslint-disable-line @typescript-eslint/no-explicit-any
 };
 
-/** The signed-in player's own gender, from the view my_profile_identity (never from `profiles`). Null when unset, unknown or the view is missing. */
-export async function readOwnGender(supabase: Client): Promise<GenderSettingValue | null> {
+/** The signed-in player's own gender, from the view my_profile_identity (never from `profiles`). `failed` is true when the view could not be read (for example it is not applied yet). */
+export async function readOwnGenderResult(supabase: Client): Promise<{ failed: boolean; value: GenderSettingValue | null }> {
   const res = await supabase.from("my_profile_identity").select("gender").maybeSingle();
-  if (res.error) return null;
+  if (res.error) return { failed: true, value: null };
   const v = (res.data as { gender?: unknown } | null)?.gender;
-  return isGenderSettingValue(v) ? v : null;
+  return { failed: false, value: isGenderSettingValue(v) ? v : null };
+}
+
+/** Null when unset, unknown or the view is missing. */
+export async function readOwnGender(supabase: Client): Promise<GenderSettingValue | null> {
+  return (await readOwnGenderResult(supabase)).value;
 }
 
 export type WriteOwnGenderResult = { ok: true } | { ok: false; message: string };
