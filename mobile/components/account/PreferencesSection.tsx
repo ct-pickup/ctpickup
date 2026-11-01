@@ -1,6 +1,6 @@
 import Slider from "@react-native-community/slider";
-import { WOMENS_SWITCH_HELP, WOMENS_SWITCH_LABEL } from "@/lib/womensLeaderboardCopy";
-import { ActivityIndicator, Switch, Text, View } from "react-native";
+import { GENDER_SETTING_HELP, GENDER_SETTING_LABEL } from "@/lib/genderFilterCopy";
+import { ActivityIndicator, Pressable, Switch, Text, View } from "react-native";
 import { accountStyles as styles, publish_accountStyles } from "./accountStyles";
 
 import { themeColor, useThemedStyles } from "@/theme";
@@ -20,11 +20,11 @@ type Props = {
   hostInvitesMsg: string | null;
   onToggleHostInvites: (next: boolean) => void;
   hostInvitesDisabled: boolean;
-  womensOptIn: boolean;
-  womensOptInBusy: boolean;
-  womensOptInMsg: string | null;
-  onToggleWomensOptIn: (next: boolean) => void;
-  womensOptInDisabled: boolean;
+  /** The player's own gender, already as text ("Male", "Not set"). */
+  genderLabel: string;
+  genderMsg: string | null;
+  onPressGender: () => void;
+  genderDisabled: boolean;
   maxDriveMinutes: number;
   maxDriveBusy: boolean;
   maxDriveMsg: string | null;
@@ -53,11 +53,10 @@ export function PreferencesSection({
   hostInvitesMsg,
   onToggleHostInvites,
   hostInvitesDisabled,
-  womensOptIn,
-  womensOptInBusy,
-  womensOptInMsg,
-  onToggleWomensOptIn,
-  womensOptInDisabled,
+  genderLabel,
+  genderMsg,
+  onPressGender,
+  genderDisabled,
   maxDriveMinutes,
   maxDriveBusy,
   maxDriveMsg,
@@ -122,21 +121,20 @@ export function PreferencesSection({
         </View>
         {hostInvitesMsg ? <Text style={styles.msg}>{hostInvitesMsg}</Text> : null}
 
-        <View style={[styles.rowBetween, styles.marketingPushRow]}>
+        <Pressable
+          onPress={onPressGender}
+          disabled={genderDisabled}
+          accessibilityRole="button"
+          accessibilityLabel={`${GENDER_SETTING_LABEL}, ${genderLabel}`}
+          style={({ pressed }) => [styles.rowBetween, styles.marketingPushRow, pressed && { opacity: 0.7 }]}
+        >
           <View style={{ flex: 1, paddingRight: 12 }}>
-            <Text style={styles.fieldLabelStrong}>{WOMENS_SWITCH_LABEL}</Text>
-            <Text style={styles.bioHint}>{WOMENS_SWITCH_HELP}</Text>
+            <Text style={styles.fieldLabelStrong}>{GENDER_SETTING_LABEL}</Text>
+            <Text style={styles.bioHint}>{GENDER_SETTING_HELP}</Text>
           </View>
-          <Switch
-            value={womensOptIn}
-            onValueChange={onToggleWomensOptIn}
-            disabled={womensOptInBusy || womensOptInDisabled}
-            trackColor={{ false: themeColor().overlayStrong, true: themeColor().pitch }}
-            thumbColor={themeColor().text}
-            accessibilityLabel={WOMENS_SWITCH_LABEL}
-          />
-        </View>
-        {womensOptInMsg ? <Text style={styles.msg}>{womensOptInMsg}</Text> : null}
+          <Text style={styles.fieldLabelStrong}>{genderLabel}</Text>
+        </Pressable>
+        {genderMsg ? <Text style={styles.msg}>{genderMsg}</Text> : null}
 
         <View style={styles.maxDriveBlock}>
           <View style={styles.maxDriveHeader}>

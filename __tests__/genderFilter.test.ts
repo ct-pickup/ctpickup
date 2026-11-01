@@ -1,8 +1,6 @@
 import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { parseLeaderboardScope, loadWomensOptInIds } from "../lib/leaderboards/womensList";
-
 type Row = Record<string, unknown>;
 type Result = { data: unknown; error: { message: string } | null };
 
@@ -118,6 +116,7 @@ vi.mock("@/lib/server/runtimeClients", () => ({ getSupabaseAdmin: () => h.db, ge
 vi.mock("@/lib/supabase/service", () => ({ supabaseService: () => h.db }));
 vi.mock("@sentry/nextjs", () => ({ captureException: () => {} }));
 
+import { currentSeason } from "@/lib/pickup/points";
 import { GET as leaderboardsGET } from "@/app/api/leaderboards/route";
 
 const IOS_UA = "CT%20Pickup/41 CFNetwork/1568.100.1 Darwin/24.0.0";
@@ -125,9 +124,10 @@ const LEGACY = { "user-agent": IOS_UA };
 const NEW_APP = { "user-agent": IOS_UA, "x-app-version": "1.7.1" };
 const get = (qs: string, headers: Record<string, string> = NEW_APP) =>
   leaderboardsGET(new Request(`http://test.local/api/leaderboards${qs}`, { headers }));
+const SEASON = currentSeason();
 
-/** `games` is rated games (settled rating sessions); `played` is games played: posted results with the player on a team (the "N games played" on the row). */
-function player(id: string, optIn: boolean, star: number, exact: number, games: number, played: number = games) {
+/** gender is the profile's stored value (or null). `games` = rated games; `played` = posted results with the player on a team. */
+function player(id: string, gender: string | null, star: number, exact: number, games: number, played: number = games) {
   h.db.rows("profiles").push({
     id,
     first_name: id.toUpperCase(),
@@ -137,100 +137,115 @@ function player(id: string, optIn: boolean, star: number, exact: number, games: 
     is_banned: false,
     nearest_venue: null,
     // Sensitive fields that must never come back from any leaderboard response.
-    gender: "female",
-    sex: "female",
+    gender,
+    sex: gender,
     gender_other: "secret-other",
   });
-  if (optIn) h.db.rows("womens_leaderboard_opt_in").push({ user_id: id, created_at: "2026-11-01T00:00:00Z" });
   h.db.rows("player_ratings").push({ user_id: id, sessions: games, star_rating: star, star_provisional: games < 5, score: 80, tier: "gold", reliability: 90, verification: "document" });
   h.db.rows("player_cards").push({ user_id: id, rating_exact: exact, rated_games: games });
   for (let k = 0; k < played; k++) {
     const run_id = `run-${id}-${k}`;
     h.db.rows("pickup_run_results").push({ run_id, winning_team: "A" });
     h.db.rows("pickup_run_team_assignments").push({ run_id, user_id: id, team: "A" });
+    h.db.rows("points_events").push({ user_id: id, run_id, reason: "played", points: 10, season: SEASON });
   }
 }
+
+const ids = (body: { tiers: Array<{ user_id: string }> }) => body.tiers.map((r) => r.user_id);
+const ranks = (body: { tiers: Array<{ rank: number }> }) => body.tiers.map((r) => r.rank);
 
 beforeEach(() => {
   vi.spyOn(console, "log").mockImplementation(() => {});
   vi.spyOn(console, "error").mockImplementation(() => {});
   h.db = new FakeDb();
-  player("a", true, 3.5, 3.38, 2); // Malik
-  player("b", true, 3.5, 3.6, 5); // Dylan
-  player("c", false, 5, 4.9, 12); // top player who did not opt in
-  player("d", true, 3.5, 3.5, 0, 0); // opted in, no rated games and no games played
-  player("e", false, 3, 3.1, 6);
-  player("f", true, 2, 2.0, 4);
+  player("m1", "male", 4, 4.1, 6); // best male
+  player("m2", "male", 3.5, 3.6, 5);
+  player("m3", "male", 3.5, 3.38, 2);
+  player("f1", "female", 3.5, 3.5, 4);
+  player("f2", "female", 2, 2.0, 3);
+  player("o1", "other", 5, 4.9, 12); // top rated overall, but gender is other
+  player("p1", "prefer_not_to_say", 3, 3.1, 6);
+  player("b1", null, 3, 3.05, 6); // blank gender
+  player("z1", "male", 4.5, 4.55, 0, 0); // male, no games played: last in the male list
 });
 
-describe("scope=women", () => {
-  it("lists only opted-in players, ordered by exact rating, ranks starting at 1, no rated games last", async () => {
-    const body = await (await get("?scope=women")).json();
-    const ids = body.tiers.map((r: { user_id: string }) => r.user_id);
-    expect(ids).toEqual(["b", "a", "f", "d"]);
-    expect(body.tiers.map((r: { rank: number }) => r.rank)).toEqual([1, 2, 3, 4]);
+describe("gender filter on the Stars list", () => {
+  it("all (the default) lists everyone, including other, prefer not to say and blank", async () => {
+    const body = await (await get("")).json();
+    expect(ids(body).sort()).toEqual(["b1", "f1", "f2", "m1", "m2", "m3", "o1", "p1", "z1"]);
+    expect(ranks(body)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    expect(ids(await (await get("?gender=all")).json())).toEqual(ids(body));
+    expect(ids(await (await get("?gender=bogus")).json())).toEqual(ids(body));
+  });
+  it("male keeps only exactly male, sorted by exact rating with games-played-zero last, ranks restart at 1", async () => {
+    const body = await (await get("?gender=male")).json();
+    expect(ids(body)).toEqual(["m1", "m2", "m3", "z1"]);
+    expect(ranks(body)).toEqual([1, 2, 3, 4]);
     expect(body.totals.tiers).toBe(4);
   });
-  it("Dylan 3.60 is above Malik 3.38 inside the women list", async () => {
-    const body = await (await get("?scope=women")).json();
-    const rank = (id: string) => body.tiers.find((r: { user_id: string }) => r.user_id === id).rank;
-    expect(rank("b")).toBeLessThan(rank("a"));
+  it("female keeps only exactly female, ranks restart at 1", async () => {
+    const body = await (await get("?gender=female")).json();
+    expect(ids(body)).toEqual(["f1", "f2"]);
+    expect(ranks(body)).toEqual([1, 2]);
   });
-  it("players who did not opt in never appear, even as the viewer or a top player", async () => {
-    const body = await (await get("?scope=women", { ...NEW_APP, authorization: "Bearer c" })).json();
-    const ids = body.tiers.map((r: { user_id: string }) => r.user_id);
-    expect(ids).not.toContain("c");
-    expect(ids).not.toContain("e");
+  it("Dylan 3.60 stays above Malik 3.38 inside a filtered list", async () => {
+    const body = await (await get("?gender=male")).json();
+    expect(ids(body).indexOf("m2")).toBeLessThan(ids(body).indexOf("m3"));
   });
-  it("never returns gender, sex, gender_other or the opt-in flag anywhere in the response", async () => {
-    for (const qs of ["?scope=women", "", "?scope=all"]) {
-      const text = JSON.stringify(await (await get(qs)).json());
-      expect(text, qs).not.toMatch(/gender|"sex"|secret-other|opt_in|womens|female/i);
+  it("other, prefer not to say and blank appear only under All", async () => {
+    for (const g of ["male", "female"]) {
+      const list = ids(await (await get(`?gender=${g}`)).json());
+      for (const hidden of ["o1", "p1", "b1"]) expect(list, `${g} ${hidden}`).not.toContain(hidden);
     }
+    expect(ids(await (await get("")).json())).toEqual(expect.arrayContaining(["o1", "p1", "b1"]));
   });
-  it("the normal Stars list is unchanged by scope and does not reveal opt-in", async () => {
-    const all = await (await get("")).json();
-    const ids = all.tiers.map((r: { user_id: string }) => r.user_id);
-    expect(ids).toEqual(["c", "b", "a", "e", "f", "d"]);
-    expect(all.tiers.map((r: { rank: number }) => r.rank)).toEqual([1, 2, 3, 4, 5, 6]);
-    expect((await (await get("?scope=bogus")).json()).tiers.length).toBe(6);
+  it("the viewer's own row only appears in a list they belong to", async () => {
+    const asOther = await (await get("?gender=female", { ...NEW_APP, authorization: "Bearer o1" })).json();
+    expect(ids(asOther)).not.toContain("o1");
+    const asFemale = await (await get("?gender=female", { ...NEW_APP, authorization: "Bearer f2" })).json();
+    expect(ids(asFemale)).toContain("f2");
   });
-  it("the older app ignores the scope", async () => {
-    const body = await (await get("?scope=women", LEGACY)).json();
-    expect(body.tiers.length).toBe(6);
+  it("the older app ignores the filter", async () => {
+    const body = await (await get("?gender=female", LEGACY)).json();
+    expect(body.tiers.length).toBe(9);
   });
-  it("games played, not rated games, decides who sinks: played but unrated stays in order, rated but never played goes last", async () => {
-    player("g", true, 4.5, 4.55, 0, 3); // 3 games played, 0 rated: ranks first
-    player("h", true, 4, 4.2, 2, 0); // rated, but 0 games played: sinks below everyone who has played
-    const body = await (await get("?scope=women")).json();
-    expect(body.tiers.map((r: { user_id: string }) => r.user_id)).toEqual(["g", "b", "a", "f", "h", "d"]);
-    expect(body.tiers.map((r: { rank: number }) => r.rank)).toEqual([1, 2, 3, 4, 5, 6]);
-  });
-  it("is empty (a friendly empty state in the app) when nobody has opted in", async () => {
-    h.db.tables["womens_leaderboard_opt_in"] = [];
-    const body = await (await get("?scope=women")).json();
+  it("a filter with no players gives an empty list (the app shows a friendly empty state)", async () => {
+    h.db.tables["profiles"] = (h.db.tables["profiles"] ?? []).filter((r) => r.gender !== "female");
+    const body = await (await get("?gender=female")).json();
     expect(body.tiers).toEqual([]);
     expect(body.totals.tiers).toBe(0);
   });
 });
 
-describe("opt-in helpers", () => {
-  it("defaults to the normal list unless the scope is exactly women", () => {
-    expect(parseLeaderboardScope("women")).toBe("women");
-    for (const v of [null, undefined, "", "all", "Women", "men", "gender"]) expect(parseLeaderboardScope(v)).toBe("all");
+describe("gender filter on the other tabs", () => {
+  it("Points (season and all time) use the same filtered list, ranks restart at 1", async () => {
+    const all = await (await get("")).json();
+    const female = await (await get("?gender=female")).json();
+    expect(female.points.map((r: { id: string }) => r.id).sort()).toEqual(["f1", "f2"]);
+    expect(female.points_all_time.map((r: { id: string }) => r.id).sort()).toEqual(["f1", "f2"]);
+    expect(female.points.map((r: { rank: number }) => r.rank)).toEqual([1, 2]);
+    expect(all.points.length).toBeGreaterThan(female.points.length);
+    expect(female.totals.points).toBe(2);
   });
-  it("reads only the opt-in table, and returns nobody when the table does not exist yet", async () => {
-    expect([...(await loadWomensOptInIds(h.db as never))].sort()).toEqual(["a", "b", "d", "f"]);
-    const broken = { from: () => ({ select: () => ({ order: () => ({ range: async () => ({ data: null, error: { message: 'relation "public.womens_leaderboard_opt_in" does not exist' } }) }) }) }) };
-    expect((await loadWomensOptInIds(broken as never)).size).toBe(0);
+  it("Games (sessions) use the filtered list too", async () => {
+    const male = await (await get("?gender=male")).json();
+    const sessionIds = male.sessions.map((r: { id: string }) => r.id);
+    expect(sessionIds).toEqual(expect.arrayContaining(["m1", "m2"]));
+    for (const id of sessionIds) expect(["m1", "m2", "m3", "z1"]).toContain(id);
   });
-  it("a player with no row is not on the list (default is not opted in)", async () => {
-    h.db.rows("profiles").push({ id: "g", approved: true, is_banned: false });
-    expect([...(await loadWomensOptInIds(h.db as never))]).not.toContain("g");
+});
+
+describe("no gender field is ever returned", () => {
+  it("not in any response, whatever the filter", async () => {
+    for (const qs of ["", "?gender=all", "?gender=male", "?gender=female", "?gender=other"]) {
+      const text = JSON.stringify(await (await get(qs, { ...NEW_APP, authorization: "Bearer m1" })).json());
+      expect(text, qs).not.toMatch(/gender|"sex"|secret-other|prefer_not_to_say|opt_in/i);
+    }
   });
-  it("the leaderboard route reads the table through the service role client only", async () => {
+  it("the route reads profiles.gender only through the service role filter helper", () => {
     const src = readFileSync(new URL("../app/api/leaderboards/route.ts", import.meta.url), "utf8");
-    expect(src).toMatch(/loadWomensOptInIds\(admin\)/);
-    expect(src).not.toMatch(/womens_leaderboard_opt_in/);
+    expect(src).toMatch(/applyGenderFilter\(admin, profiles, genderFilter\)/);
+    expect(src).not.toMatch(/\bgender\b\s*:/);
+    expect(src).not.toMatch(/select\([^)]*gender/);
   });
 });
