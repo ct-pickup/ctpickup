@@ -1,12 +1,17 @@
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import Animated, { Easing, useAnimatedStyle, useDerivedValue, withSequence, withTiming } from "react-native-reanimated";
+
+import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { prizeProgress, seasonCountdownText, seasonTimeLeft } from "@/lib/motionCore";
 
 import { useAuth } from "@/context/AuthContext";
 import { fetchMyRecord } from "@/lib/playerRecord";
 import { seasonWindowFor, SEASON_PRIZE_MIN_GAMES, SEASON_PRIZE_USD } from "@/lib/pickup/seasonPrize";
-import { POINTS_LOAD_FAILED_TEXT, type StandingState } from "@/lib/pointsCopy";
-import { fetchSeasonStanding, seasonDaysLeft, seasonGamesFromLog, type SeasonStanding } from "@/lib/seasonCard";
+import { RATING_LOAD_FAILED_TEXT, type StandingState } from "@/lib/pointsCopy";
+import { StarsStatValue } from "@/components/season/StarsStatValue";
+import { fetchSeasonStanding, seasonDaysLeft, seasonGamesFromLog, standingRankText, type SeasonStanding } from "@/lib/seasonCard";
 import { fetchSeasonEntered, SEASON_PRIZE_ENABLED } from "@/lib/seasonPrize";
 import { radius, themeColor, useThemedStyles } from "@/theme";
 import { APPLE_DISCLAIMER } from "@shared/seasonRules";
@@ -33,6 +38,15 @@ function SeasonCardInner({ standing: given }: Props) {
   const userId = session?.user?.id ?? null;
   const season = seasonWindowFor();
   const daysLeft = seasonDaysLeft();
+  const reduceMotion = useReduceMotion();
+
+  // Live countdown to the end of the season, refreshed every minute while the card is mounted.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+  const countdown = seasonCountdownText(seasonTimeLeft(now));
 
   const [fetched, setFetched] = useState<SeasonStanding | null>(null);
   const [standingState, setStandingState] = useState<StandingState>("loading");
@@ -60,7 +74,15 @@ function SeasonCardInner({ standing: given }: Props) {
   );
 
   const standing = given === undefined ? fetched : given;
-  // A failed call is not a zero: say so and let the player retry. A real 0 with no ranking stays "0" and "Unranked".
+
+  // Progress toward the prize threshold; the bar fills in when the games count arrives (no animation with Reduce Motion).
+  const progress = prizeProgress(games, SEASON_PRIZE_MIN_GAMES);
+  const fill = useDerivedValue(
+    () => (reduceMotion ? progress : withSequence(withTiming(0, { duration: 0 }), withTiming(progress, { duration: 700, easing: Easing.out(Easing.cubic) }))),
+    [progress, reduceMotion],
+  );
+  const fillStyle = useAnimatedStyle(() => ({ width: `${Math.round(fill.value * 100)}%` }));
+  // A failed call is not "no rating": say so and let the player retry. "Unranked" only appears without a rating.
   const standingFailed = given === undefined && standingState === "failed" && !standing;
 
   function retryStanding() {
@@ -71,14 +93,14 @@ function SeasonCardInner({ standing: given }: Props) {
       setStandingState(v ? "ok" : "failed");
     });
   }
-  const rankText = standing?.rank != null ? `#${standing.rank}${standing.total != null ? ` of ${standing.total}` : ""}` : "Unranked";
+  const rankText = standingRankText(standing);
 
   return (
     <View style={styles.card} accessibilityLabel={`${season.label} season`}>
       <View style={styles.top}>
         <View style={styles.topText}>
-          <Text style={styles.label} numberOfLines={1}>
-            {season.label} · {daysLeft} {daysLeft === 1 ? "day" : "days"} left
+          <Text style={styles.label} numberOfLines={1} accessibilityLabel={`${season.label}, ${daysLeft} ${daysLeft === 1 ? "day" : "days"} left`}>
+            {season.label} · {countdown}
           </Text>
           <Text style={styles.prize}>Win ${SEASON_PRIZE_USD}</Text>
         </View>
@@ -98,17 +120,33 @@ function SeasonCardInner({ standing: given }: Props) {
       </View>
       <View style={styles.stats}>
         {standingFailed ? (
-          <Pressable onPress={retryStanding} style={styles.statWide} accessibilityRole="button" accessibilityLabel={POINTS_LOAD_FAILED_TEXT}>
-            <Text style={styles.retry}>{POINTS_LOAD_FAILED_TEXT}</Text>
-            <Text style={styles.statLabel}>Points and rank</Text>
+          <Pressable onPress={retryStanding} style={styles.statWide} accessibilityRole="button" accessibilityLabel={RATING_LOAD_FAILED_TEXT}>
+            <Text style={styles.retry}>{RATING_LOAD_FAILED_TEXT}</Text>
+            <Text style={styles.statLabel}>Stars and rank</Text>
           </Pressable>
         ) : (
           <>
-            <Stat value={standing ? standing.points.toLocaleString() : "–"} label="Points" />
+            <View style={styles.stat}>
+              {standing ? (
+                <StarsStatValue star={standing.star} exact={standing.exact} provisional={standing.provisional} />
+              ) : (
+                <Text style={styles.statValue}>–</Text>
+              )}
+              <Text style={styles.statLabel}>Stars</Text>
+            </View>
             <Stat value={standing ? rankText : "–"} label="Rank" />
           </>
         )}
         <Stat value={games == null ? "–" : `${games} of ${SEASON_PRIZE_MIN_GAMES}`} label="Games toward prize" />
+      </View>
+      <View
+        style={styles.track}
+        accessible
+        accessibilityRole="progressbar"
+        accessibilityLabel={`${games ?? 0} of ${SEASON_PRIZE_MIN_GAMES} games toward $${SEASON_PRIZE_USD}`}
+        accessibilityValue={{ min: 0, max: SEASON_PRIZE_MIN_GAMES, now: games ?? 0 }}
+      >
+        <Animated.View style={[styles.fill, fillStyle]} />
       </View>
       <Pressable onPress={() => (router.push as (href: string) => void)("/season-rules")} hitSlop={6} accessibilityRole="link">
         <Text style={styles.rules}>Official rules · {APPLE_DISCLAIMER}</Text>
@@ -143,6 +181,8 @@ function make_styles() {
     pressed: { opacity: 0.85 },
     rules: { color: c.muted, fontSize: 11, fontFamily: "Inter_500Medium" },
     stats: { flexDirection: "row", gap: 8 },
+    track: { height: 6, borderRadius: 3, backgroundColor: c.overlay, overflow: "hidden" },
+    fill: { height: 6, borderRadius: 3, backgroundColor: c.pitch },
     stat: { flex: 1, minWidth: 0 },
     statWide: { flex: 2, minWidth: 0 },
     retry: { color: c.pitchText, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },

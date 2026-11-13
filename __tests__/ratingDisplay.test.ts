@@ -69,7 +69,7 @@ describe("attendanceRing", () => {
 describe("ratingDisplay", () => {
   const base = { star: 3.5, exact: 3.62, ratedGames: 3, settledGames: 5, attendanceReliability: 92, provisional: true };
   it("builds the provisional block: ring is attendance, bar is rating confidence with no percent", () => {
-    expect(ratingDisplay(base)).toEqual({ number: "3.62", reliability: 92, settled: false, progress: 0.6, gamesLabel: "3 games so far" });
+    expect(ratingDisplay(base)).toEqual({ number: "3.62", reliability: 92, settled: false, progress: 0.6, gamesLabel: "3 games so far", lockLabel: "2 more games to lock your rating" });
   });
   it("builds the settled block", () => {
     const d = ratingDisplay({ ...base, ratedGames: 9, provisional: false, attendanceReliability: 100 });

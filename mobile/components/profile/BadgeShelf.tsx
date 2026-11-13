@@ -1,7 +1,11 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useMemo, useState, type ComponentProps } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import Animated, { Easing, useAnimatedStyle, useDerivedValue, withDelay, withSequence, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import { ConfettiBurst } from "@/components/ConfettiBurst";
+import { useReduceMotion } from "@/hooks/useReduceMotion";
 
 import type { ProfileBadge } from "@/lib/playerBadges";
 import { headline, themeColor, useThemedStyles } from "@/theme";
@@ -38,11 +42,48 @@ function BadgeGlyph({ id, size, locked = false }: { id: BadgeId; size: number; l
   );
 }
 
-/** Wrapping badge grid, every badge visible. Unearned badges are greyed; tapping any badge explains how to earn it. */
-export default function BadgeShelf({ badges }: { badges: ProfileBadge[] }) {
+/**
+ * A badge that was just earned: pops in (scale), glows, and throws a short confetti burst. Plays once per mount of the celebration.
+ * Under Reduce Motion the badge simply shows as earned.
+ */
+function UnlockingBadge({ children, order }: { children: React.ReactNode; order: number }) {
+  useThemedStyles(publish_styles);
+  const reduceMotion = useReduceMotion();
+  const delay = 150 + order * 350;
+  const scale = useDerivedValue(
+    () =>
+      reduceMotion
+        ? 1
+        : withSequence(
+            withTiming(0.6, { duration: 0 }),
+            withDelay(delay, withSequence(withTiming(1.25, { duration: 260, easing: Easing.out(Easing.back(2)) }), withTiming(1, { duration: 220 }))),
+          ),
+    [reduceMotion, delay],
+  );
+  const glow = useDerivedValue(
+    () => (reduceMotion ? 0 : withSequence(withTiming(0, { duration: 0 }), withDelay(delay, withSequence(withTiming(1, { duration: 300 }), withDelay(500, withTiming(0, { duration: 600 })))))),
+    [reduceMotion, delay],
+  );
+  const pop = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const halo = useAnimatedStyle(() => ({ opacity: glow.value, transform: [{ scale: 1 + glow.value * 0.6 }] }));
+  return (
+    <View style={styles.unlockWrap}>
+      <Animated.View pointerEvents="none" style={[styles.halo, halo]} />
+      {!reduceMotion ? <ConfettiBurst playKey={order} delayMs={delay} /> : null}
+      <Animated.View style={pop}>{children}</Animated.View>
+    </View>
+  );
+}
+
+/**
+ * Wrapping badge grid, every badge visible. Unearned badges are greyed; tapping any badge explains how to earn it.
+ * `justEarned` are the badges to celebrate on this render (the caller works them out from the device's memory).
+ */
+export default function BadgeShelf({ badges, justEarned }: { badges: ProfileBadge[]; justEarned?: ReadonlyArray<BadgeId> }) {
   useThemedStyles(publish_styles);
   const insets = useSafeAreaInsets();
   const [open, setOpen] = useState<ProfileBadge | null>(null);
+  const celebrating = useMemo(() => new Set(justEarned ?? []), [justEarned]);
 
   // Earned first, each group keeping the order BADGES declares.
   const ordered = useMemo(
@@ -61,7 +102,13 @@ export default function BadgeShelf({ badges }: { badges: ProfileBadge[] }) {
             accessibilityRole="button"
             accessibilityLabel={`${b.label}, ${b.earned ? "earned" : "not earned yet"}`}
           >
-            <BadgeGlyph id={b.id} size={36} locked={!b.earned} />
+            {celebrating.has(b.id) ? (
+              <UnlockingBadge order={[...celebrating].indexOf(b.id)}>
+                <BadgeGlyph id={b.id} size={36} locked={false} />
+              </UnlockingBadge>
+            ) : (
+              <BadgeGlyph id={b.id} size={36} locked={!b.earned} />
+            )}
             <Text style={[styles.label, !b.earned && styles.labelLocked]} numberOfLines={2}>
               {b.label}
             </Text>
@@ -106,6 +153,8 @@ function make_styles() {
     labelLocked: { color: themeColor().muted },
     pressed: { opacity: 0.7 },
     glyph: { backgroundColor: themeColor().pitchPanel, alignItems: "center", justifyContent: "center" },
+    unlockWrap: { alignItems: "center", justifyContent: "center" },
+    halo: { position: "absolute", width: 36, height: 36, borderRadius: 18, backgroundColor: themeColor().pitch },
     numeral: { fontFamily: headline.fontFamily, color: themeColor().onPitchPanel },
     label: {
       marginTop: 3,

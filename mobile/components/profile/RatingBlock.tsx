@@ -1,5 +1,9 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { useCallback } from "react";
 import { StyleSheet, Text, View } from "react-native";
+
+import { useCountUp } from "@/hooks/useCountUp";
+import { hapticTap } from "@/lib/haptics";
 
 import { ReliabilityRing, SettleProgress } from "@/components/profile/RatingReliability";
 import { StarRating } from "@/components/StarRating";
@@ -30,6 +34,12 @@ type Props = {
 export function RatingBlock({ star, provisional, verified, level, display, exact, compact }: Props) {
   useThemedStyles(publish_styles);
   const c = themeColor();
+  // The number counts up from 0 and the stars fill in sequence behind it; a light tap when it lands. Reduce Motion shows the final value at once.
+  const finalNumber = Number(display.number);
+  const onLanded = useCallback(() => void hapticTap(), []);
+  const countUp = useCountUp(compact ? null : Number.isFinite(finalNumber) ? finalNumber : null, onLanded);
+  const shownNumber = countUp.value == null || countUp.landed ? display.number : countUp.value.toFixed(display.number.includes(".") ? display.number.split(".")[1]!.length : 0);
+  const reveal = countUp.value == null || countUp.landed ? null : countUp.value;
   if (compact) {
     return (
       <View style={styles.compactRow}>
@@ -51,12 +61,12 @@ export function RatingBlock({ star, provisional, verified, level, display, exact
     <View style={styles.block}>
       <View style={styles.numberRow}>
         <Text allowFontScaling={false} style={styles.exactNumber} accessibilityLabel={`${display.number} rating`}>
-          {display.number}
+          {shownNumber}
         </Text>
         {display.reliability != null ? <ReliabilityRing percent={display.reliability} /> : null}
       </View>
       <View style={styles.starsRow}>
-        <StarRating value={star} exact={exact} provisional={provisional} px={20} showValue={false} showLevel={false} tone="onPhoto" />
+        <StarRating value={star} exact={exact} reveal={reveal} provisional={provisional} px={20} showValue={false} showLevel={false} tone="onPhoto" />
         {verified ? (
           <View style={styles.verified}>
             <FontAwesome name="check" size={10} color={c.onInk} />
@@ -69,7 +79,9 @@ export function RatingBlock({ star, provisional, verified, level, display, exact
           {level}
         </Text>
       ) : null}
-      {display.progress != null && display.gamesLabel ? <SettleProgress progress={display.progress} gamesLabel={display.gamesLabel} /> : null}
+      {display.progress != null && display.gamesLabel ? (
+        <SettleProgress progress={display.progress} gamesLabel={display.gamesLabel} lockLabel={display.lockLabel} />
+      ) : null}
     </View>
   );
 }

@@ -24,6 +24,8 @@ export type RatingDisplay = {
   progress: number | null;
   /** "3 games so far", "1 game so far". Null when hidden. */
   gamesLabel: string | null;
+  /** "2 more games to lock your rating", "1 more game to lock your rating", or "Rating locked in". Null when the counts are unknown. */
+  lockLabel: string | null;
 };
 
 const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
@@ -48,6 +50,14 @@ export function attendanceRing(reliability: number | null | undefined, ratedGame
   return Math.min(100, Math.max(0, Math.round(reliability)));
 }
 
+/** How far from a settled rating, in plain words. */
+export function lockLabel(ratedGames: number | null | undefined, settledGames: number | null | undefined, settled: boolean): string | null {
+  if (!finite(ratedGames) || !finite(settledGames) || settledGames <= 0) return null;
+  const left = Math.max(0, settledGames - ratedGames);
+  if (settled || left === 0) return "Rating locked in";
+  return `${left} more ${left === 1 ? "game" : "games"} to lock your rating`;
+}
+
 export function gamesSoFar(n: number): string {
   return `${n} ${n === 1 ? "game" : "games"} so far`;
 }
@@ -63,5 +73,6 @@ export function ratingDisplay(r: RatingInput): RatingDisplay {
     // The bar is the rating-confidence signal (rated games toward settled). It never shows a percent.
     progress: known ? confidence / 100 : null,
     gamesLabel: known ? gamesSoFar(r.ratedGames as number) : null,
+    lockLabel: known ? lockLabel(r.ratedGames, r.settledGames, !r.provisional) : null,
   };
 }

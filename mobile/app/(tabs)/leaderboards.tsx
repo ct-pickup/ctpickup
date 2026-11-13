@@ -4,7 +4,7 @@ import { hapticTap } from "@/lib/haptics";
 import { Ionicons } from "@expo/vector-icons";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useNavigation, useRouter } from "expo-router";
-import { useCallback, useLayoutEffect, useMemo, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -19,6 +19,9 @@ import {
 } from "react-native";
 
 import { ChalkDivider, ChalkEmptyState } from "@/components/chalk";
+import { StarsListSkeleton } from "@/components/leaderboard/StarsListSkeleton";
+import { medalFor, rankDeltas, rankSnapshot } from "@/lib/motionCore";
+import { readRankMemory, writeRankMemory } from "@/lib/rankMemory";
 import DiscoverPanel from "@/components/discover/DiscoverPanel";
 import { DiscoverRequestError, fetchWeeklyPicks, searchPlayers as searchDiscover } from "@/lib/discoverApi";
 import type { DiscoverPlayer } from "@shared/discover";
@@ -36,7 +39,7 @@ import {
 } from "@/lib/genderFilterCopy";
 import { gamesPlayedText, POINTS_LABEL, seasonPointsCaption } from "@/lib/pointsCopy";
 import { SeasonCard } from "@/components/season/SeasonCard";
-import { standingFromRows } from "@/lib/seasonCard";
+import { standingFromTiers } from "@/lib/seasonCard";
 import { fetchSeasonEntered, SEASON_PRIZE_ENABLED } from "@/lib/seasonPrize";
 import { StarRating } from "@/components/StarRating";
 import { fetchPlayerCards, topPercentLabel, type PlayerCard } from "@/lib/starRatings";
@@ -83,6 +86,8 @@ type LeaderboardsPayload = {
   /** Current-season and all-time points from the points ledger; season is e.g. "Fall 2026". */
   points: unknown[];
   points_all_time: unknown[];
+  /** Raw Stars rows (user_id, star, rating_exact, provisional, rank): the season card reads the viewer's own row. */
+  tiers: unknown[];
   season: string | null;
   /** Rows returned per category before the player's own and played-with rows. */
   top_n: number;
@@ -152,6 +157,7 @@ function parsePayload(json: unknown): LeaderboardsPayload | null {
     attacker: asRowArray(json.attacker),
     points: asRowArray(json.points),
     points_all_time: asRowArray(json.points_all_time),
+    tiers: Array.isArray(json.tiers) ? json.tiers : [],
     season: typeof json.season === "string" && json.season ? json.season : null,
     top_n: typeof json.top_n === "number" && json.top_n > 0 ? json.top_n : 25,
     totals: isRecord(json.totals)
@@ -246,6 +252,10 @@ export default function LeaderboardsScreen() {
 
   // Stars tab: points from /api/leaderboards, stars and percentile from player_cards.
   const [rankedPlayers, setRankedPlayers] = useState<RankedPlayer[]>([]);
+  /** Rank change per player since the last app session (positive = moved up). Empty on a first visit. */
+  const [deltas, setDeltas] = useState<Record<string, number>>({});
+  /** The ranks remembered from before this session; refreshes compare against the same baseline so arrows do not vanish on pull. */
+  const rankBaseline = useRef<{ viewerId: string; ranks: Record<string, number> | null } | null>(null);
   /** Size of the Stars ranking when the app had to rank it itself (older server); null when the server sent totals. */
   const [starsTotal, setStarsTotal] = useState<number | null>(null);
   const [myCard, setMyCard] = useState<PlayerCard | null>(_cachedMyCard);
@@ -335,6 +345,14 @@ export default function LeaderboardsScreen() {
           shown = [...rows].sort((a, b) => a.rank - b.rank);
           const ids = [...shown.map((p) => p.user_id), ...(myUserId ? [myUserId] : [])];
           if (supabase) cards = await fetchPlayerCards(supabase, ids);
+          // Rank-change arrows: compare with the ranks this device saw last time (no server needed), then remember today's.
+          if (myUserId) {
+            if (rankBaseline.current?.viewerId !== myUserId) rankBaseline.current = { viewerId: myUserId, ranks: await readRankMemory(myUserId) };
+            const list = shown.map((r) => ({ user_id: r.user_id, rank: r.rank }));
+            const base = rankBaseline.current.ranks;
+            setDeltas(base ? rankDeltas(base, list) : {});
+            void writeRankMemory(myUserId, { ...(base ?? {}), ...rankSnapshot(list) });
+          }
         } else {
           // Fallback ranking. Needs every row's stars: the row's own, else player_cards for the whole list.
           if (supabase && rows.some((r) => r.star == null)) {
@@ -601,15 +619,25 @@ export default function LeaderboardsScreen() {
     const rank = item.rank;
     const mine = myUserId != null && item.user_id === myUserId;
     const top3 = rank <= 3;
+    const medal = medalFor(rank);
+    const delta = deltas[item.user_id] ?? 0;
     const gapBefore = rank > topN && index > 0 && (rankedPlayers[index - 1]?.rank ?? 0) <= topN;
     return (
       <Pressable
         key={item.user_id}
         onPress={() => router.push(`/player/${item.user_id}`)}
-        style={({ pressed }) => [styles.playerRow, mine && styles.playerRowMine, gapBefore && styles.gapBefore, pressed && { opacity: 0.85 }]}
+        style={({ pressed }) => [styles.playerRow, mine && styles.playerRowMine, medal && styles[`row_${medal}`], gapBefore && styles.gapBefore, pressed && { opacity: 0.85 }]}
+        accessibilityLabel={`${rank}. ${item.name}${delta > 0 ? `, up ${delta}` : delta < 0 ? `, down ${-delta}` : ""}`}
       >
-        <View style={[styles.rankCell, top3 && styles.rankCircleTop3]}>
-          <Text style={[styles.rankText, top3 && styles.rankTextTop3, mine && styles.onPanelText]}>{rank}</Text>
+        <View style={styles.rankCol}>
+          <View style={[styles.rankCell, top3 && styles.rankCircleTop3, medal && styles[`medal_${medal}`]]}>
+            <Text style={[styles.rankText, top3 && styles.rankTextTop3, mine && styles.onPanelText, medal && styles[`medalText_${medal}`]]}>{rank}</Text>
+          </View>
+          {delta !== 0 ? (
+            <Text style={[styles.delta, delta > 0 ? styles.deltaUp : styles.deltaDown]} numberOfLines={1}>
+              {delta > 0 ? `▲${delta}` : `▼${-delta}`}
+            </Text>
+          ) : null}
         </View>
 
         <View style={[styles.avatarRing, { borderColor: themeColor().line }]}>
@@ -659,7 +687,9 @@ export default function LeaderboardsScreen() {
   }
 
   function renderStarsTab() {
+    const myRow = myUserId ? (rankedPlayers.find((p) => p.user_id === myUserId) ?? null) : null;
     return (
+      <View style={styles.listFlex}>
       <ScrollView
         style={styles.listFlex}
         contentContainerStyle={styles.tierContent}
@@ -675,7 +705,7 @@ export default function LeaderboardsScreen() {
         </View>
 
         {starsLoading && rankedPlayers.length === 0 ? (
-          <ActivityIndicator color={themeColor().pitchText} style={{ marginTop: 32 }} />
+          <StarsListSkeleton />
         ) : rankedPlayers.length === 0 ? (
           <ChalkEmptyState
             graphic="circle"
@@ -700,6 +730,30 @@ export default function LeaderboardsScreen() {
           </View>
         </View>
       </ScrollView>
+      {myRow ? (
+        <Pressable
+          onPress={() => router.push("/(tabs)/account")}
+          style={({ pressed }) => [styles.pinnedYou, pressed && { opacity: 0.9 }]}
+          accessibilityRole="button"
+          accessibilityLabel={`You are ranked ${myRow.rank}${starsTotal ?? payload?.totals.tiers ? ` of ${starsTotal ?? payload?.totals.tiers}` : ""}. Opens your profile.`}
+        >
+          <View style={[styles.rankCell, styles.pinnedRank]}>
+            <Text style={[styles.rankText, styles.onPanelText]}>{myRow.rank}</Text>
+          </View>
+          <View style={styles.youTag}>
+            <Text style={styles.youTagText}>You</Text>
+          </View>
+          {myRow.card ? <StarRating value={myRow.card.star} exact={myRow.card.exact} provisional={myRow.card.provisional} size="sm" /> : null}
+          <View style={{ flex: 1 }} />
+          {(deltas[myRow.user_id] ?? 0) !== 0 ? (
+            <Text style={[styles.delta, (deltas[myRow.user_id] ?? 0) > 0 ? styles.deltaUp : styles.deltaDown]}>
+              {(deltas[myRow.user_id] ?? 0) > 0 ? `▲${deltas[myRow.user_id]}` : `▼${-(deltas[myRow.user_id] ?? 0)}`}
+            </Text>
+          ) : null}
+          <FontAwesome name="chevron-up" size={12} color={themeColor().onPitchPanel} />
+        </Pressable>
+      ) : null}
+      </View>
     );
   }
 
@@ -713,7 +767,7 @@ export default function LeaderboardsScreen() {
       <View>
         {SEASON_PRIZE_ENABLED && payload ? (
           <View style={styles.seasonCardWrap}>
-            <SeasonCard standing={standingFromRows(payload.points, myUserId, payload.totals.points)} />
+            <SeasonCard standing={standingFromTiers(payload.tiers, myUserId, payload.totals.tiers)} />
           </View>
         ) : null}
         <View style={styles.scopeRow}>
@@ -783,8 +837,8 @@ export default function LeaderboardsScreen() {
               onPress={() => router.push(`/player/${encodeURIComponent(item.id)}`)}
               style={({ pressed }) => [styles.playerRow, mine && styles.playerRowMine, gapBefore && styles.gapBefore, pressed && { opacity: 0.85 }]}
             >
-              <View style={[styles.rankCell, top3 && styles.rankCircleTop3]}>
-                <Text style={[styles.rankText, top3 && styles.rankTextTop3, mine && styles.onPanelText]}>{rank}</Text>
+              <View style={[styles.rankCell, top3 && styles.rankCircleTop3, medalFor(rank) && styles[`medal_${medalFor(rank)!}`]]}>
+                <Text style={[styles.rankText, top3 && styles.rankTextTop3, mine && styles.onPanelText, medalFor(rank) && styles[`medalText_${medalFor(rank)!}`]]}>{rank}</Text>
               </View>
               <View style={[styles.avatarRing, { borderColor: themeColor().line }]}>
                 <View style={[styles.avatarImg, styles.avatarFallback]}>
@@ -1029,6 +1083,31 @@ function make_styles() {
   },
   rankText: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "800" },
   rankTextTop3: { color: themeColor().onPitchPanel },
+  rankCol: { alignItems: "center", gap: 2 },
+  /* top three: a subtle medal tint on the rank circle and a hairline of the same colour on the row */
+  medal_gold: { borderColor: themeColor().medalGold, backgroundColor: themeColor().overlaySubtle },
+  medal_silver: { borderColor: themeColor().medalSilver, backgroundColor: themeColor().overlaySubtle },
+  medal_bronze: { borderColor: themeColor().medalBronze, backgroundColor: themeColor().overlaySubtle },
+  medalText_gold: { color: themeColor().medalGold },
+  medalText_silver: { color: themeColor().medalSilver },
+  medalText_bronze: { color: themeColor().medalBronze },
+  row_gold: { borderColor: themeColor().medalGold },
+  row_silver: { borderColor: themeColor().medalSilver },
+  row_bronze: { borderColor: themeColor().medalBronze },
+  delta: { fontSize: 10, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  deltaUp: { color: themeColor().success },
+  deltaDown: { color: themeColor().coralText },
+  pinnedYou: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: themeColor().pitchText,
+    backgroundColor: themeColor().pitchPanel,
+  },
+  pinnedRank: { width: 30, height: 30, borderRadius: 12, borderWidth: 1.5, borderColor: themeColor().pitchText },
   onPanelText: { color: themeColor().onPitchPanel },
   gapBefore: { marginTop: 16 },
   nameLine: { flexDirection: "row", alignItems: "center", gap: 6 },

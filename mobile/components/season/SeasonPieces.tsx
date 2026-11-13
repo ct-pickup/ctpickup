@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { RatingBlock } from "@/components/profile/RatingBlock";
 import { StarRating } from "@/components/StarRating";
 import { seasonRatingCard } from "@/lib/seasonRatingCardCore";
-import { seasonStatsView } from "@/lib/seasonStatLine";
+import { StarsStatValue } from "@/components/season/StarsStatValue";
 import { dateBlockEt, recordCaption, recordLine, type Outcome } from "@/lib/season";
 import type { PastGame } from "@/lib/seasonData";
 import type { PlayerCard } from "@/lib/starRatings";
@@ -73,7 +73,6 @@ export function SeasonHeaderCard({
   draws,
   games,
   potdCount,
-  points,
   card,
   form,
 }: {
@@ -82,12 +81,10 @@ export function SeasonHeaderCard({
   draws: number;
   games: number;
   potdCount: number;
-  points: number | null;
   card: PlayerCard | null;
   form: Outcome[];
 }) {
   useThemedStyles(publish_styles);
-  const statsView = seasonStatsView(points);
   return (
     <View style={styles.headerCard}>
       {card ? (
@@ -101,17 +98,14 @@ export function SeasonHeaderCard({
       <View style={styles.statsRow}>
         <Stat value={String(games)} label="Games" />
         <View style={styles.statDivider} />
-        {statsView.kind === "line" ? (
-          <View style={styles.seasonLineWrap}>
-            <Text style={styles.seasonLine}>{statsView.text}</Text>
-          </View>
-        ) : (
-          <>
-            <Stat value={String(potdCount)} label="Player of the Day" />
-            <View style={styles.statDivider} />
-            <Stat value={points == null ? "\u2014" : points.toLocaleString()} label="Season pts" />
-          </>
-        )}
+        <Stat value={String(potdCount)} label="Player of the Day" />
+        <View style={styles.statDivider} />
+        <View style={styles.stat}>
+          <StarsStatValue star={card?.star ?? null} exact={card?.exact ?? null} provisional={card?.provisional === true} size={18} />
+          <Text style={styles.statLabel} numberOfLines={1}>
+            Stars
+          </Text>
+        </View>
       </View>
 
       {form.length > 0 ? (
@@ -235,8 +229,6 @@ function make_styles() {
     statValue: { fontSize: 20, ...headline, color: themeColor().text },
     statLabel: { fontSize: 12, fontFamily: "Inter_500Medium", color: themeColor().muted },
     ratingCard: { padding: 12, borderRadius: radius.card, backgroundColor: themeColor().inkSurface, borderWidth: StyleSheet.hairlineWidth, borderColor: themeColor().line, marginBottom: 12 },
-    seasonLineWrap: { flex: 2, justifyContent: "center", paddingHorizontal: 8 },
-    seasonLine: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_600SemiBold", fontWeight: "600", textAlign: "center" },
     statDivider: { width: StyleSheet.hairlineWidth, alignSelf: "stretch", backgroundColor: themeColor().line },
     formRow: { marginTop: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
     formLabel: { fontSize: 13, fontFamily: "Inter_500Medium", color: themeColor().muted },

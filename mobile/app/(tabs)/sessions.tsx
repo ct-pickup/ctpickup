@@ -33,7 +33,6 @@ const EMPTY_SEASON: SeasonData = {
   games: 0,
   potdCount: 0,
   form: [],
-  points: null,
   card: null,
   upcoming: [],
   crowds: new Map(),
@@ -220,7 +219,6 @@ export default function GamesTabScreen() {
                 draws={season.draws}
                 games={season.games}
                 potdCount={season.potdCount}
-                points={season.points}
                 card={season.card}
                 form={form}
               />
