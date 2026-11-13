@@ -42,7 +42,7 @@ const RUN_COLUMNS = "id,title,start_at,location_text,capacity,spots_taken,status
 /** Same definition of "going" as Home's crowd query: a held spot. */
 const GOING_STATUSES = ["confirmed", "pending_payment"];
 
-type MyGame = {
+export type CalendarGame = {
   id: string;
   title: string | null;
   start_at: string;
@@ -55,6 +55,7 @@ type MyGame = {
   min_star: number | null;
   hosting: boolean;
 };
+type MyGame = CalendarGame;
 
 type Range = { from: DateKey; to: DateKey };
 
@@ -201,6 +202,7 @@ export default function HomeCalendar({
   onOpenRun,
   onGetGame,
   registerRefresh,
+  suggestions = [],
 }: {
   supabase: SupabaseClient | null;
   myUserId: string | null;
@@ -208,6 +210,8 @@ export default function HomeCalendar({
   onGetGame: () => void;
   /** Lets Home's pull-to-refresh reload the calendar too. */
   registerRefresh?: (refresh: () => void) => void;
+  /** Upcoming games Home already loaded, shown under Today when nothing is booked (at most three). */
+  suggestions?: CalendarGame[];
 }) {
   useThemedStyles(publish_styles);
   const insets = useSafeAreaInsets();
@@ -361,6 +365,14 @@ export default function HomeCalendar({
           </Pressable>
         </View>
       )}
+      {dayGames.length === 0 && isToday && suggestions.length > 0 ? (
+        <View style={styles.suggestions}>
+          <Text style={styles.suggestionsTitle}>Games you could join</Text>
+          {suggestions.slice(0, 3).map((g) => (
+            <DayGameRow key={g.id} game={g} onPress={() => onOpenRun(g.id)} />
+          ))}
+        </View>
+      ) : null}
       {dayGames.length === 0 && nextLater ? (
         <Pressable
           onPress={() => selectDay(nextLater.key)}
@@ -529,6 +541,8 @@ function make_styles() {
   return StyleSheet.create({
     pressed: { opacity: 0.88 },
     disabled: { opacity: 0.3 },
+    suggestions: { marginTop: 10, gap: 8 },
+    suggestionsTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: c.muted },
     headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 16, marginBottom: 6 },
     monthBtn: { flexDirection: "row", alignItems: "center", gap: 6 },
     monthText: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: c.text },
