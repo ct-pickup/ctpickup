@@ -51,7 +51,8 @@ describe("season card: Stars stat from the Stars leaderboard", () => {
     const pieces = src("mobile/components/season/SeasonPieces.tsx");
     expect(pieces).not.toMatch(/Season pts/);
     expect(pieces).toMatch(/label="Player of the Day"/);
-    expect(pieces).toMatch(/StarsStatValue/);
+    expect(pieces).toMatch(/label="Win %"/);
+    expect(pieces).not.toMatch(/cornerStars/);
     const card = src("mobile/components/season/SeasonCard.tsx");
     expect(card).toMatch(/label="Rank"/);
     expect(card).toMatch(/StarsStatValue/);
@@ -99,6 +100,7 @@ describe("provisional to settled", () => {
   it("comes through ratingDisplay and the bar animates only without Reduce Motion", () => {
     const d = ratingDisplay({ star: 3.5, exact: 3.58, ratedGames: 3, settledGames: 5, provisional: true });
     expect(d.lockLabel).toBe("2 more games to lock your rating");
+    expect(d.gamesLabel).toBe("3 of 5 rated games");
     const bar = src("mobile/components/profile/RatingReliability.tsx");
     expect(bar).toMatch(/withTiming\(p/);
     expect(bar).toMatch(/reduceMotion \? p/);

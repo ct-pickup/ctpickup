@@ -219,7 +219,6 @@ export default function GamesTabScreen() {
                 draws={season.draws}
                 games={season.games}
                 potdCount={season.potdCount}
-                card={season.card}
                 form={form}
               />
             ) : upcoming.length === 0 ? (

@@ -22,7 +22,7 @@ export type RatingDisplay = {
   settled: boolean;
   /** 0 to 1 for the progress bar, or null when hidden. */
   progress: number | null;
-  /** "3 games so far", "1 game so far". Null when hidden. */
+  /** "3 of 5 rated games". Null when hidden. */
   gamesLabel: string | null;
   /** "2 more games to lock your rating", "1 more game to lock your rating", or "Rating locked in". Null when the counts are unknown. */
   lockLabel: string | null;
@@ -58,9 +58,17 @@ export function lockLabel(ratedGames: number | null | undefined, settledGames: n
   return `${left} more ${left === 1 ? "game" : "games"} to lock your rating`;
 }
 
-export function gamesSoFar(n: number): string {
-  return `${n} ${n === 1 ? "game" : "games"} so far`;
+/** "0 of 5 rated games": counts rated games only, so it never reads against the games played count above it. */
+export function ratedGamesLabel(rated: number, settled: number): string {
+  return `${rated} of ${settled} rated games`;
 }
+
+/**
+ * What makes a game count as rated, in plain words. From the code: a rating session settles when the host submits player ratings
+ * (session screen, "Submit & settle ratings") or automatically two hours after kickoff (check-voting); each settled game the player
+ * attended adds one rated game.
+ */
+export const RATED_GAMES_HELP = "A game counts as rated once its ratings settle: when the host submits player ratings, or two hours after kickoff.";
 
 export function ratingDisplay(r: RatingInput): RatingDisplay {
   const confidence = reliabilityPercent(r.ratedGames, r.settledGames);
@@ -72,7 +80,7 @@ export function ratingDisplay(r: RatingInput): RatingDisplay {
     settled: !r.provisional,
     // The bar is the rating-confidence signal (rated games toward settled). It never shows a percent.
     progress: known ? confidence / 100 : null,
-    gamesLabel: known ? gamesSoFar(r.ratedGames as number) : null,
+    gamesLabel: known ? ratedGamesLabel(r.ratedGames as number, r.settledGames as number) : null,
     lockLabel: known ? lockLabel(r.ratedGames, r.settledGames, !r.provisional) : null,
   };
 }

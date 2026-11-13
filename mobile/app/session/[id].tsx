@@ -1,4 +1,5 @@
 import { goBack } from "@/lib/goBack";
+import { RatingScaleLegend } from "@/components/RatingScaleLegend";
 import { useAuth } from "@/context/AuthContext";
 import { useProfilePhoto } from "@/context/ProfilePhotoContext";
 import { useProfileAdmin } from "@/context/ProfileAdminContext";
@@ -54,7 +55,7 @@ import {
   levelLabel,
 } from "@/lib/starRatings";
 import { HalfStarInput } from "@/components/HalfStarInput";
-import { STAR_LEVELS, starLevelLabel } from "@shared/starLevels";
+import { starLevelLabel } from "@shared/starLevels";
 import { milesFromZip } from "@/lib/venueDistance";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 import type { DevFixtures } from "../../dev-fixtures";
@@ -1804,18 +1805,7 @@ export default function SessionDetailScreen() {
           </View>
           <Text style={s.voteSubtitle}>Give each player the rating that best reflects how they played today.</Text>
 
-          <View style={s.tierLegend}>
-            {[...STAR_LEVELS].filter((l) => l.star >= 1).reverse().map((l) => (
-              <View key={l.star} style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                <Text style={{ color: themeColor().text, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold", width: 92 }}>
-                  {l.star.toFixed(1)} · {l.name}
-                </Text>
-                {l.description ? (
-                  <Text style={{ flex: 1, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" }}>{l.description}</Text>
-                ) : null}
-              </View>
-            ))}
-          </View>
+          <RatingScaleLegend />
 
           <View style={{ padding: 16, gap: 16 }}>
             {attendees.filter((a) => a.user_id !== myUserId).map((a) => {

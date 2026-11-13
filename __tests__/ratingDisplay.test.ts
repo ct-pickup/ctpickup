@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { attendanceRing, gamesSoFar, ratingDisplay, ratingNumber, reliabilityPercent } from "../mobile/lib/ratingDisplayCore";
+import { attendanceRing, RATED_GAMES_HELP, ratedGamesLabel, ratingDisplay, ratingNumber, reliabilityPercent } from "../mobile/lib/ratingDisplayCore";
 import { STAR_LEVELS_SUBTITLE } from "../shared/starLevels";
 import { fetchPlayerCard, fetchPlayerCards } from "../mobile/lib/starRatings";
 
@@ -69,28 +69,31 @@ describe("attendanceRing", () => {
 describe("ratingDisplay", () => {
   const base = { star: 3.5, exact: 3.62, ratedGames: 3, settledGames: 5, attendanceReliability: 92, provisional: true };
   it("builds the provisional block: ring is attendance, bar is rating confidence with no percent", () => {
-    expect(ratingDisplay(base)).toEqual({ number: "3.62", reliability: 92, settled: false, progress: 0.6, gamesLabel: "3 games so far", lockLabel: "2 more games to lock your rating" });
+    expect(ratingDisplay(base)).toEqual({ number: "3.62", reliability: 92, settled: false, progress: 0.6, gamesLabel: "3 of 5 rated games", lockLabel: "2 more games to lock your rating" });
   });
   it("builds the settled block", () => {
     const d = ratingDisplay({ ...base, ratedGames: 9, provisional: false, attendanceReliability: 100 });
     expect(d.reliability).toBe(100);
     expect(d.settled).toBe(true);
     expect(d.progress).toBe(1);
-    expect(d.gamesLabel).toBe("9 games so far");
+    expect(d.gamesLabel).toBe("9 of 5 rated games");
   });
   it("0 games: the ring is hidden but the bar and the games line stay", () => {
     const d = ratingDisplay({ ...base, ratedGames: 0 });
     expect(d.reliability).toBeNull();
     expect(d.progress).toBe(0);
-    expect(d.gamesLabel).toBe("0 games so far");
-    expect(gamesSoFar(1)).toBe("1 game so far");
+    expect(d.gamesLabel).toBe("0 of 5 rated games");
+    expect(ratedGamesLabel(1, 5)).toBe("1 of 5 rated games");
+    expect(RATED_GAMES_HELP).toMatch(/host submits player ratings/);
+    expect(RATED_GAMES_HELP).toMatch(/two hours after kickoff/);
+    expect(RATED_GAMES_HELP).not.toMatch(/score|formula/i);
   });
   it("1 game: the ring shows", () => {
     expect(ratingDisplay({ ...base, ratedGames: 1 }).reliability).toBe(92);
   });
   it("attendance column missing: ring hidden, everything else works", () => {
     const d = ratingDisplay({ ...base, attendanceReliability: null });
-    expect(d).toMatchObject({ number: "3.62", reliability: null, progress: 0.6, gamesLabel: "3 games so far" });
+    expect(d).toMatchObject({ number: "3.62", reliability: null, progress: 0.6, gamesLabel: "3 of 5 rated games" });
   });
   it("without the earlier migration too: old one decimal star, no ring, no bar", () => {
     const d = ratingDisplay({ star: 3.5, exact: null, ratedGames: null, settledGames: null, attendanceReliability: null, provisional: true });
@@ -100,7 +103,7 @@ describe("ratingDisplay", () => {
 
 describe("copy", () => {
   it("has no em dash and no tier or wave words", () => {
-    for (const t of [gamesSoFar(3), STAR_LEVELS_SUBTITLE]) {
+    for (const t of [ratedGamesLabel(3, 5), RATED_GAMES_HELP, STAR_LEVELS_SUBTITLE]) {
       expect(t).not.toMatch(/—|–|\btier\b|\bwave\b|bronze|silver|gold|platinum|diamond/i);
     }
   });

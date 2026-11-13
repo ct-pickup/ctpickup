@@ -3,6 +3,7 @@ import Animated, { Easing, useAnimatedStyle, useDerivedValue, withSequence, with
 import Svg, { Circle } from "react-native-svg";
 
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { RATED_GAMES_HELP } from "@/lib/ratingDisplayCore";
 
 import { themeColor, useThemedStyles } from "@/theme";
 
@@ -83,6 +84,7 @@ export function SettleProgress({ progress, gamesLabel, lockLabel }: { progress: 
           </Text>
         ) : null}
       </View>
+      <Text style={styles.help}>{RATED_GAMES_HELP}</Text>
     </View>
   );
 }
@@ -99,6 +101,7 @@ function make_styles() {
     track: { height: 4, borderRadius: 2, backgroundColor: c.line, overflow: "hidden" },
     fill: { height: 4, borderRadius: 2, backgroundColor: c.pitch },
     games: { color: c.onInk, opacity: 0.8, fontSize: 12, fontFamily: "Inter_500Medium", fontWeight: "500" },
+    help: { color: c.onInk, opacity: 0.6, fontSize: 11, lineHeight: 15, fontFamily: "Inter_400Regular", marginTop: 2 },
     lock: { color: c.pitch, fontSize: 12, fontFamily: "Inter_600SemiBold", fontWeight: "600", flexShrink: 1, textAlign: "right" },
   });
 }

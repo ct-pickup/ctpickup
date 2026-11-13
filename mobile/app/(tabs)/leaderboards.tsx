@@ -37,7 +37,8 @@ import {
   genderChipLabel,
   type GenderFilterValue,
 } from "@/lib/genderFilterCopy";
-import { gamesPlayedText, POINTS_LABEL, seasonPointsCaption } from "@/lib/pointsCopy";
+import { gamesPlayedText } from "@/lib/pointsCopy";
+import { starNumberText } from "@/lib/starFillCore";
 import { SeasonCard } from "@/components/season/SeasonCard";
 import { standingFromTiers } from "@/lib/seasonCard";
 import { fetchSeasonEntered, SEASON_PRIZE_ENABLED } from "@/lib/seasonPrize";
@@ -581,17 +582,22 @@ export default function LeaderboardsScreen() {
     const topPct = topPercentLabel(myCard);
 
     return (
-      <View style={styles.hero}>
+      <View style={[styles.hero, styles.heroCompact]}>
         <View style={styles.heroLeft}>
-          <Text style={styles.heroLabel}>Your rating</Text>
-          {myCard ? (
-            <StarRating value={myCard.star} exact={myCard.exact} provisional={myCard.provisional} size="lg" style={styles.heroStars} />
-          ) : (
-            <Text style={styles.heroSub}>Your rating shows here after your first rated games.</Text>
-          )}
-          {topPct ? <Text style={styles.heroTop}>{topPct}</Text> : null}
-          <Text style={styles.heroSub}>Play more verified games to move up.</Text>
-          <StarLevelsLink style={styles.heroLink} />
+          <View style={styles.heroLine}>
+            <Text style={styles.heroLabel}>Your rating</Text>
+            {myCard ? (
+              <StarRating value={myCard.star} exact={myCard.exact} provisional={myCard.provisional} size="md" showLevel={false} style={styles.heroStarsInline} />
+            ) : (
+              <Text style={styles.heroSubInline} numberOfLines={2}>
+                Shows here after your first rated games.
+              </Text>
+            )}
+          </View>
+          <View style={styles.heroMeta}>
+            {topPct ? <Text style={styles.heroTopSmall}>{topPct}</Text> : null}
+            <StarLevelsLink />
+          </View>
         </View>
       </View>
     );
@@ -667,7 +673,7 @@ export default function LeaderboardsScreen() {
             ) : null}
           </View>
           {item.card ? (
-            <StarRating value={item.card.star} exact={item.card.exact} provisional={item.card.provisional} size="sm" style={styles.playerStars} />
+            <StarRating value={item.card.star} exact={item.card.exact} provisional={item.card.provisional} size="sm" showValue={false} style={styles.playerStars} />
           ) : null}
           <Text style={[styles.playerStats, mine && styles.onPanelText]} numberOfLines={1}>
             {gamesPlayedText(item.games)}
@@ -675,11 +681,8 @@ export default function LeaderboardsScreen() {
         </View>
 
         <View style={styles.ptsBlock}>
-          <Text style={styles.ptsValue}>{item.points.toLocaleString()}</Text>
-          <Text style={[styles.ptsLabel, mine && styles.onPanelText]}>{POINTS_LABEL}</Text>
-          <Text style={[styles.ptsSeason, mine && styles.onPanelText]} numberOfLines={1}>
-            {seasonPointsCaption(payload?.season)}
-          </Text>
+          <Text style={[styles.ptsValue, mine && styles.onPanelText]}>{item.card ? starNumberText(item.card.star, item.card.exact) : "–"}</Text>
+          <Text style={[styles.ptsLabel, mine && styles.onPanelText]}>Rating</Text>
         </View>
         <FontAwesome name="chevron-right" size={13} color={themeColor().muted} style={{ marginLeft: 4 }} />
       </Pressable>
@@ -743,8 +746,9 @@ export default function LeaderboardsScreen() {
           <View style={styles.youTag}>
             <Text style={styles.youTagText}>You</Text>
           </View>
-          {myRow.card ? <StarRating value={myRow.card.star} exact={myRow.card.exact} provisional={myRow.card.provisional} size="sm" /> : null}
+          {myRow.card ? <StarRating value={myRow.card.star} exact={myRow.card.exact} provisional={myRow.card.provisional} size="sm" showValue={false} /> : null}
           <View style={{ flex: 1 }} />
+          {myRow.card ? <Text style={[styles.pinnedRating, styles.onPanelText]}>{starNumberText(myRow.card.star, myRow.card.exact)}</Text> : null}
           {(deltas[myRow.user_id] ?? 0) !== 0 ? (
             <Text style={[styles.delta, (deltas[myRow.user_id] ?? 0) > 0 ? styles.deltaUp : styles.deltaDown]}>
               {(deltas[myRow.user_id] ?? 0) > 0 ? `▲${deltas[myRow.user_id]}` : `▼${-(deltas[myRow.user_id] ?? 0)}`}
@@ -1024,6 +1028,12 @@ function make_styles() {
   heroLabel: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800",},
   heroStars: { marginTop: 8 },
   heroTop: { color: themeColor().text, fontSize: 24, ...headline, marginTop: 8 },
+  heroCompact: { minHeight: 0, paddingVertical: 12 },
+  heroLine: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", columnGap: 10, rowGap: 6 },
+  heroStarsInline: { flexShrink: 1, flexWrap: "wrap" },
+  heroSubInline: { flex: 1, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" },
+  heroMeta: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 6 },
+  heroTopSmall: { color: themeColor().text, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
   heroSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 8 },
 
   /* section header */
@@ -1097,16 +1107,21 @@ function make_styles() {
   delta: { fontSize: 10, fontFamily: "Inter_700Bold", fontWeight: "700" },
   deltaUp: { color: themeColor().success },
   deltaDown: { color: themeColor().coralText },
+  /* floats above the tab bar with room for the centre + button (56pt, 26pt above the bar), so nothing sits under it */
   pinnedYou: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderTopWidth: 1,
-    borderTopColor: themeColor().pitchText,
+    marginHorizontal: 16,
+    marginBottom: 34,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: themeColor().pitchText,
     backgroundColor: themeColor().pitchPanel,
   },
+  pinnedRating: { fontSize: 18, ...headline },
   pinnedRank: { width: 30, height: 30, borderRadius: 12, borderWidth: 1.5, borderColor: themeColor().pitchText },
   onPanelText: { color: themeColor().onPitchPanel },
   gapBefore: { marginTop: 16 },
