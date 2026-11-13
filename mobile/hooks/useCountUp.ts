@@ -7,7 +7,8 @@ import { countUpDurationMs, countUpValue } from "@/lib/motionCore";
  * Counts from 0 up to `target` once, when `target` first becomes a number (and again if it changes). Returns the current value and
  * whether it has landed. With Reduce Motion the value is the target at once. `onLanded` fires once per run, after the last frame.
  */
-export function useCountUp(target: number | null | undefined, onLanded?: () => void): { value: number | null; landed: boolean } {
+/** `runKey` restarts the count-up when it changes (one run per screen visit). */
+export function useCountUp(target: number | null | undefined, onLanded?: () => void, runKey: number = 0): { value: number | null; landed: boolean } {
   const reduceMotion = useReduceMotion();
   const [value, setValue] = useState<number | null>(null);
   const [landed, setLanded] = useState(false);
@@ -49,7 +50,7 @@ export function useCountUp(target: number | null | undefined, onLanded?: () => v
       cancelled = true;
       cancelAnimationFrame(frame);
     };
-  }, [target, reduceMotion]);
+  }, [target, reduceMotion, runKey]);
 
   return { value, landed };
 }

@@ -1,10 +1,13 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import Animated, { Easing, useAnimatedStyle, useDerivedValue, withSequence, withTiming } from "react-native-reanimated";
 
+import { AnimatedPressScale } from "@/components/AnimatedPressScale";
 import { StarRating } from "@/components/StarRating";
+import { useVisitKey } from "@/hooks/useVisitKey";
+import { MOTION } from "@/lib/motion";
 import { useAuth } from "@/context/AuthContext";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import { homeSeasonModel } from "@/lib/homeSeasonCore";
@@ -26,6 +29,7 @@ export function HomeSeasonCard({ onPress }: { onPress: () => void }) {
   const token = session?.access_token ?? null;
   const userId = session?.user?.id ?? null;
   const reduceMotion = useReduceMotion();
+  const visit = useVisitKey();
   const season = seasonWindowFor();
 
   const [standing, setStanding] = useState<SeasonStanding | null>(null);
@@ -51,17 +55,18 @@ export function HomeSeasonCard({ onPress }: { onPress: () => void }) {
   const model = homeSeasonModel(standing, games, SEASON_PRIZE_ENABLED);
   const progress = prizeProgress(model?.games, SEASON_PRIZE_MIN_GAMES);
   const fill = useDerivedValue(
-    () => (reduceMotion ? progress : withSequence(withTiming(0, { duration: 0 }), withTiming(progress, { duration: 360, easing: Easing.out(Easing.cubic) }))),
-    [progress, reduceMotion],
+    () => (reduceMotion ? progress : withSequence(withTiming(0, { duration: 0 }), withTiming(progress, { duration: MOTION.duration.slow, easing: Easing.out(Easing.cubic) }))),
+    [progress, reduceMotion, visit],
   );
   const fillStyle = useAnimatedStyle(() => ({ width: `${Math.round(fill.value * 100)}%` }));
   if (!model) return null;
 
   const countdown = seasonCountdownText(seasonTimeLeft(now));
   return (
-    <Pressable
+    <AnimatedPressScale
       onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+      pressedScale={MOTION.pressScale.card}
+      style={styles.card}
       accessibilityRole="button"
       accessibilityLabel={`${season.label}. ${model.starsText ? `Rating ${model.starsText}. ` : ""}${model.rankText ? `Rank ${model.rankText}. ` : ""}${countdown}. Opens your profile.`}
     >
@@ -94,7 +99,7 @@ export function HomeSeasonCard({ onPress }: { onPress: () => void }) {
           </View>
         </View>
       ) : null}
-    </Pressable>
+    </AnimatedPressScale>
   );
 }
 
@@ -102,7 +107,6 @@ function make_styles() {
   const c = themeColor();
   return StyleSheet.create({
     card: { marginTop: 16, padding: 12, borderRadius: radius.card, backgroundColor: c.card, borderWidth: 1, borderColor: c.line, gap: 10 },
-    pressed: { opacity: 0.88 },
     top: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
     label: { flex: 1, color: c.muted, fontSize: 12, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
     ratingRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" },

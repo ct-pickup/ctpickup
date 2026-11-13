@@ -3,6 +3,7 @@ import Animated, { Easing, useAnimatedStyle, useDerivedValue, withSequence, with
 import Svg, { Circle } from "react-native-svg";
 
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { MOTION } from "@/lib/motion";
 import { RATED_GAMES_HELP } from "@/lib/ratingDisplayCore";
 
 import { themeColor, useThemedStyles } from "@/theme";
@@ -51,14 +52,14 @@ export function ReliabilityRing({ percent }: { percent: number }) {
 }
 
 /** Thin Provisional to Settled bar with the games so far and how many more lock the rating. The fill animates in (not with Reduce Motion). */
-export function SettleProgress({ progress, gamesLabel, lockLabel }: { progress: number; gamesLabel: string; lockLabel?: string | null }) {
+export function SettleProgress({ progress, gamesLabel, lockLabel, replayKey = 0 }: { progress: number; gamesLabel: string; lockLabel?: string | null; replayKey?: number }) {
   useThemedStyles(publish_styles);
   const reduceMotion = useReduceMotion();
   const p = Math.max(0, Math.min(1, progress));
   // Fills from empty to p when it mounts or p changes; straight to p under Reduce Motion.
   const fill = useDerivedValue(
-    () => (reduceMotion ? p : withSequence(withTiming(0, { duration: 0 }), withTiming(p, { duration: 700, easing: Easing.out(Easing.cubic) }))),
-    [p, reduceMotion],
+    () => (reduceMotion ? p : withSequence(withTiming(0, { duration: 0 }), withTiming(p, { duration: MOTION.duration.slow, easing: Easing.out(Easing.cubic) }))),
+    [p, reduceMotion, replayKey],
   );
   const fillStyle = useAnimatedStyle(() => ({ width: `${Math.round(fill.value * 100)}%` }));
   return (

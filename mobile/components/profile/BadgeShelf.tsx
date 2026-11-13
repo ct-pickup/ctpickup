@@ -1,10 +1,11 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useMemo, useState, type ComponentProps } from "react";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import Animated, { Easing, useAnimatedStyle, useDerivedValue, withDelay, withSequence, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ConfettiBurst } from "@/components/ConfettiBurst";
+import { SheetModal } from "@/components/motion/SheetModal";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 
 import type { ProfileBadge } from "@/lib/playerBadges";
@@ -116,9 +117,7 @@ export default function BadgeShelf({ badges, justEarned }: { badges: ProfileBadg
         ))}
       </View>
 
-      <Modal visible={open != null} transparent animationType="slide" onRequestClose={() => setOpen(null)}>
-        <View style={styles.root}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setOpen(null)} accessibilityLabel="Close" />
+      <SheetModal visible={open != null} onClose={() => setOpen(null)}>
           {open ? (
             <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
               <View style={styles.handle} />
@@ -137,8 +136,7 @@ export default function BadgeShelf({ badges, justEarned }: { badges: ProfileBadg
               </Pressable>
             </View>
           ) : null}
-        </View>
-      </Modal>
+      </SheetModal>
     </>
   );
 }

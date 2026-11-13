@@ -3,6 +3,7 @@ import { useCallback } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { useCountUp } from "@/hooks/useCountUp";
+import { useVisitKey } from "@/hooks/useVisitKey";
 import { hapticTap } from "@/lib/haptics";
 
 import { ReliabilityRing, SettleProgress } from "@/components/profile/RatingReliability";
@@ -37,7 +38,8 @@ export function RatingBlock({ star, provisional, verified, level, display, exact
   // The number counts up from 0 and the stars fill in sequence behind it; a light tap when it lands. Reduce Motion shows the final value at once.
   const finalNumber = Number(display.number);
   const onLanded = useCallback(() => void hapticTap(), []);
-  const countUp = useCountUp(compact ? null : Number.isFinite(finalNumber) ? finalNumber : null, onLanded);
+  const visit = useVisitKey();
+  const countUp = useCountUp(compact ? null : Number.isFinite(finalNumber) ? finalNumber : null, onLanded, visit);
   const shownNumber = countUp.value == null || countUp.landed ? display.number : countUp.value.toFixed(display.number.includes(".") ? display.number.split(".")[1]!.length : 0);
   const reveal = countUp.value == null || countUp.landed ? null : countUp.value;
   if (compact) {
@@ -80,7 +82,7 @@ export function RatingBlock({ star, provisional, verified, level, display, exact
         </Text>
       ) : null}
       {display.progress != null && display.gamesLabel ? (
-        <SettleProgress progress={display.progress} gamesLabel={display.gamesLabel} lockLabel={display.lockLabel} />
+        <SettleProgress progress={display.progress} gamesLabel={display.gamesLabel} lockLabel={display.lockLabel} replayKey={visit} />
       ) : null}
     </View>
   );

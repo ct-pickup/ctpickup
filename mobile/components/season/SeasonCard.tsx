@@ -4,7 +4,10 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import Animated, { Easing, useAnimatedStyle, useDerivedValue, withSequence, withTiming } from "react-native-reanimated";
 
 import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { useVisitKey } from "@/hooks/useVisitKey";
+import { MOTION } from "@/lib/motion";
 import { prizeProgress, seasonCountdownText, seasonTimeLeft } from "@/lib/motionCore";
+import { AnimatedPressScale } from "@/components/AnimatedPressScale";
 
 import { useAuth } from "@/context/AuthContext";
 import { fetchMyRecord } from "@/lib/playerRecord";
@@ -39,6 +42,7 @@ function SeasonCardInner({ standing: given }: Props) {
   const season = seasonWindowFor();
   const daysLeft = seasonDaysLeft();
   const reduceMotion = useReduceMotion();
+  const visit = useVisitKey();
 
   // Live countdown to the end of the season, refreshed every minute while the card is mounted.
   const [now, setNow] = useState(() => Date.now());
@@ -78,8 +82,8 @@ function SeasonCardInner({ standing: given }: Props) {
   // Progress toward the prize threshold; the bar fills in when the games count arrives (no animation with Reduce Motion).
   const progress = prizeProgress(games, SEASON_PRIZE_MIN_GAMES);
   const fill = useDerivedValue(
-    () => (reduceMotion ? progress : withSequence(withTiming(0, { duration: 0 }), withTiming(progress, { duration: 700, easing: Easing.out(Easing.cubic) }))),
-    [progress, reduceMotion],
+    () => (reduceMotion ? progress : withSequence(withTiming(0, { duration: 0 }), withTiming(progress, { duration: MOTION.duration.slow, easing: Easing.out(Easing.cubic) }))),
+    [progress, reduceMotion, visit],
   );
   const fillStyle = useAnimatedStyle(() => ({ width: `${Math.round(fill.value * 100)}%` }));
   // A failed call is not "no rating": say so and let the player retry. "Unranked" only appears without a rating.
@@ -109,13 +113,15 @@ function SeasonCardInner({ standing: given }: Props) {
             <Text style={styles.badgeText}>In the season</Text>
           </View>
         ) : entered === false ? (
-          <Pressable
+          <AnimatedPressScale
             onPress={() => (router.push as (href: string) => void)("/season-prize")}
-            style={({ pressed }) => [styles.enterBtn, pressed && styles.pressed]}
+            hapticOnPress
+            pressedScale={MOTION.pressScale.button}
+            style={styles.enterBtn}
             accessibilityRole="button"
           >
             <Text style={styles.enterText}>Enter the season</Text>
-          </Pressable>
+          </AnimatedPressScale>
         ) : null}
       </View>
       <View style={styles.stats}>

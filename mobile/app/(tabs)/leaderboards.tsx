@@ -20,6 +20,10 @@ import {
 
 import { ChalkDivider, ChalkEmptyState } from "@/components/chalk";
 import { StarsListSkeleton } from "@/components/leaderboard/StarsListSkeleton";
+import { AnimatedPressScale } from "@/components/AnimatedPressScale";
+import { SelectionPill, useSelectionPill } from "@/components/motion/SelectionPill";
+import { StaggerIn } from "@/components/motion/StaggerIn";
+import { MOTION } from "@/lib/motion";
 import { medalFor, rankDeltas, rankSnapshot } from "@/lib/motionCore";
 import { readRankMemory, writeRankMemory } from "@/lib/rankMemory";
 import DiscoverPanel from "@/components/discover/DiscoverPanel";
@@ -507,6 +511,7 @@ export default function LeaderboardsScreen() {
   const onRefresh = useCallback(() => void load(true), [load]);
 
   const moreActive = MORE_TABS.some((m) => m.id === tab);
+  const tabPill = useSelectionPill<string>(moreActive ? "more" : tab);
   const moreLabel = moreActive ? (MORE_TABS.find((m) => m.id === tab)?.label ?? "More") : "More";
 
   /* --------------------------------------------------------- renderers */
@@ -520,16 +525,21 @@ export default function LeaderboardsScreen() {
         contentContainerStyle={styles.tabRow}
         keyboardShouldPersistTaps="handled"
       >
+        <SelectionPill style={tabPill.pillStyle} />
         {PRIMARY_TABS.map((t) => {
           const on = tab === t.id;
           return (
-            <Pressable
+            <AnimatedPressScale
               key={t.id}
+              onLayout={tabPill.onLayoutFor(t.id)}
+              pressedScale={MOTION.pressScale.chip}
               onPress={() => {
                 void hapticTap();
                 setTab(t.id);
               }}
-              style={[styles.tabPill, on ? styles.tabPillOn : styles.tabPillOff]}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: on }}
+              style={[styles.tabPill, on ? (tabPill.ready ? styles.tabPillOnClear : styles.tabPillOn) : styles.tabPillOff]}
             >
               {t.icon ? (
                 <FontAwesome name={t.icon} size={13} color={on ? themeColor().onPitch : themeColor().text} style={{ marginRight: 4 }} />
@@ -537,15 +547,18 @@ export default function LeaderboardsScreen() {
               <Text style={[styles.tabPillText, on && styles.tabPillTextOn]} numberOfLines={1}>
                 {t.label}
               </Text>
-            </Pressable>
+            </AnimatedPressScale>
           );
         })}
-        <Pressable
+        <AnimatedPressScale
+          onLayout={tabPill.onLayoutFor("more")}
+          pressedScale={MOTION.pressScale.chip}
           onPress={() => {
             void hapticTap();
             setMoreOpen(true);
           }}
-          style={[styles.tabPill, moreActive ? styles.tabPillOn : styles.tabPillOff]}
+          accessibilityRole="button"
+          style={[styles.tabPill, moreActive ? (tabPill.ready ? styles.tabPillOnClear : styles.tabPillOn) : styles.tabPillOff]}
         >
           <Text style={[styles.tabPillText, moreActive && styles.tabPillTextOn]} numberOfLines={1}>
             {moreLabel}
@@ -556,8 +569,9 @@ export default function LeaderboardsScreen() {
             color={moreActive ? themeColor().onPitch : themeColor().text}
             style={{ marginLeft: 4 }}
           />
-        </Pressable>
-        <Pressable
+        </AnimatedPressScale>
+        <AnimatedPressScale
+          pressedScale={MOTION.pressScale.chip}
           onPress={() => {
             void hapticTap();
             setGenderOpen(true);
@@ -570,7 +584,7 @@ export default function LeaderboardsScreen() {
             {genderChipLabel(genderFilter)}
           </Text>
           <FontAwesome name="caret-down" size={13} color={genderFilter !== "all" ? themeColor().onPitch : themeColor().text} style={{ marginLeft: 4 }} />
-        </Pressable>
+        </AnimatedPressScale>
       </ScrollView>
     );
   }
@@ -629,10 +643,12 @@ export default function LeaderboardsScreen() {
     const delta = deltas[item.user_id] ?? 0;
     const gapBefore = rank > topN && index > 0 && (rankedPlayers[index - 1]?.rank ?? 0) <= topN;
     return (
-      <Pressable
-        key={item.user_id}
+      <StaggerIn key={item.user_id} index={index}>
+      <AnimatedPressScale
         onPress={() => router.push(`/player/${item.user_id}`)}
-        style={({ pressed }) => [styles.playerRow, mine && styles.playerRowMine, medal && styles[`row_${medal}`], gapBefore && styles.gapBefore, pressed && { opacity: 0.85 }]}
+        pressedScale={MOTION.pressScale.card}
+        accessibilityRole="button"
+        style={[styles.playerRow, mine && styles.playerRowMine, medal && styles[`row_${medal}`], gapBefore && styles.gapBefore]}
         accessibilityLabel={`${rank}. ${item.name}${delta > 0 ? `, up ${delta}` : delta < 0 ? `, down ${-delta}` : ""}`}
       >
         <View style={styles.rankCol}>
@@ -685,7 +701,8 @@ export default function LeaderboardsScreen() {
           <Text style={[styles.ptsLabel, mine && styles.onPanelText]}>Rating</Text>
         </View>
         <FontAwesome name="chevron-right" size={13} color={themeColor().muted} style={{ marginLeft: 4 }} />
-      </Pressable>
+      </AnimatedPressScale>
+      </StaggerIn>
     );
   }
 
@@ -837,9 +854,12 @@ export default function LeaderboardsScreen() {
           const gapBefore = rank > topN && index > 0 && (rowsForTab[index - 1]?.rank ?? 0) <= topN;
           const name = displayPlayerName(item);
           return (
-            <Pressable
+            <StaggerIn index={index}>
+            <AnimatedPressScale
               onPress={() => router.push(`/player/${encodeURIComponent(item.id)}`)}
-              style={({ pressed }) => [styles.playerRow, mine && styles.playerRowMine, gapBefore && styles.gapBefore, pressed && { opacity: 0.85 }]}
+              pressedScale={MOTION.pressScale.card}
+              accessibilityRole="button"
+              style={[styles.playerRow, mine && styles.playerRowMine, gapBefore && styles.gapBefore]}
             >
               <View style={[styles.rankCell, top3 && styles.rankCircleTop3, medalFor(rank) && styles[`medal_${medalFor(rank)!}`]]}>
                 <Text style={[styles.rankText, top3 && styles.rankTextTop3, mine && styles.onPanelText, medalFor(rank) && styles[`medalText_${medalFor(rank)!}`]]}>{rank}</Text>
@@ -875,7 +895,8 @@ export default function LeaderboardsScreen() {
                 <Text style={styles.ptsValue}>{formatStat(tab, item)}</Text>
                 <Text style={styles.ptsLabel}>{statLabel(tab)}</Text>
               </View>
-            </Pressable>
+            </AnimatedPressScale>
+            </StaggerIn>
           );
         }}
       />
@@ -998,6 +1019,8 @@ function make_styles() {
   },
   tabPillOff: { borderWidth: 1, borderColor: themeColor().line, backgroundColor: "transparent" },
   tabPillOn: { backgroundColor: themeColor().pitch, borderWidth: 0 },
+  /* once the selection pill has measured the chips it carries the colour; the chip itself goes clear */
+  tabPillOnClear: { backgroundColor: "transparent", borderWidth: 0 },
   tabPillText: { color: themeColor().text, fontWeight: "600", fontSize: 14, fontFamily: "Inter_600SemiBold" },
   tabPillTextOn: { color: themeColor().onPitch, fontWeight: "800" },
   scopeRow: { flexDirection: "row", gap: 8, marginBottom: 12 },

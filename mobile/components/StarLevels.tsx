@@ -1,6 +1,8 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
+
+import { SheetModal } from "@/components/motion/SheetModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { headline, themeColor, useThemedStyles } from "@/theme";
@@ -46,9 +48,7 @@ function Sheet({
   useThemedStyles(publish_styles);
   const insets = useSafeAreaInsets();
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.root}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close" />
+    <SheetModal visible={visible} onClose={onClose}>
         <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
           <View style={styles.handle} />
           <View style={styles.header}>
@@ -60,8 +60,7 @@ function Sheet({
           {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
           <ScrollView contentContainerStyle={styles.list}>{children}</ScrollView>
         </View>
-      </View>
-    </Modal>
+    </SheetModal>
   );
 }
 

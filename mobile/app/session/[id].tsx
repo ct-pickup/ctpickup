@@ -1,5 +1,9 @@
 import { goBack } from "@/lib/goBack";
 import { RatingScaleLegend } from "@/components/RatingScaleLegend";
+import { AnimatedPressScale } from "@/components/AnimatedPressScale";
+import { StaggerIn } from "@/components/motion/StaggerIn";
+import { MOTION } from "@/lib/motion";
+import Reanimated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { useAuth } from "@/context/AuthContext";
 import { useProfilePhoto } from "@/context/ProfilePhotoContext";
 import { useProfileAdmin } from "@/context/ProfileAdminContext";
@@ -1808,11 +1812,11 @@ export default function SessionDetailScreen() {
           <RatingScaleLegend />
 
           <View style={{ padding: 16, gap: 16 }}>
-            {attendees.filter((a) => a.user_id !== myUserId).map((a) => {
+            {attendees.filter((a) => a.user_id !== myUserId).map((a, idx) => {
               const name = playerName(a);
               const rated = scores[a.user_id] ?? null;
               return (
-                <View key={a.user_id} style={s.scoreRow}>
+                <StaggerIn key={a.user_id} index={idx} style={s.scoreRow}>
                   <View style={s.avatar}><Text style={s.avatarText}>{playerInitials(a)}</Text></View>
                   <View style={{ flex: 1 }}>
                     <Text style={s.playerName}>{name}</Text>
@@ -1823,17 +1827,27 @@ export default function SessionDetailScreen() {
                       label={`Rate ${name}`}
                       style={{ marginTop: 8 }}
                     />
-                    {rated != null ? <Text style={s.hostRatedLevel}>{starLevelLabel(rated)}</Text> : null}
+                    {rated != null ? (
+                      <Reanimated.Text key={rated} entering={FadeIn.duration(MOTION.duration.fast)} exiting={FadeOut.duration(MOTION.duration.fast)} style={s.hostRatedLevel}>
+                        {starLevelLabel(rated)}
+                      </Reanimated.Text>
+                    ) : null}
                   </View>
-                </View>
+                </StaggerIn>
               );
             })}
           </View>
-          <Pressable onPress={() => void submitScores()} disabled={scoreBusy}
-            style={[s.publishBtn, scoreBusy && { opacity: 0.5 }, { margin: 16 }]}>
+          <AnimatedPressScale
+            onPress={() => void submitScores()}
+            disabled={scoreBusy}
+            hapticOnPress
+            pressedScale={MOTION.pressScale.button}
+            accessibilityRole="button"
+            style={[s.publishBtn, scoreBusy && { opacity: 0.5 }, { margin: 16 }]}
+          >
             {scoreBusy ? <ActivityIndicator color={themeColor().onPitch} /> :
               <Text style={s.publishBtnText}>Submit & settle ratings</Text>}
-          </Pressable>
+          </AnimatedPressScale>
         </ScrollView>
       </Modal>
 
