@@ -52,7 +52,10 @@
 --   tournament_unrate_tournament(tournament)    take every effect of a tournament back out and remove all of its records
 --   tournament_revert_run(run)                  subtract what a tournament run applied to each player, whatever the switches are
 --   apply_result_rating(run)                    REPLACED (same behavior for every game that is not a tournament match)
---   restrictive select policies on pickup_runs, pickup_run_results, pickup_run_team_assignments hiding tournament match records
+--   tournament_run_counts_for_season(run)       whether the run's tournament counts for the season
+--   refresh_player_game_stats(run)              REPLACED (same for every game that is not a tournament match; a tournament match that does not
+--                                               count for the season writes no game stats, so no profile record)
+--   restrictive select policies on pickup_runs, pickup_run_results, pickup_run_rsvps, pickup_run_team_assignments hiding tournament match records
 --
 -- Verify after running:
 --   select value from public.rating_config where key = 'tournament_daily_max_delta';                  -- 3
@@ -66,6 +69,7 @@
 --   begin;
 --   drop policy if exists tournament_match_runs_hidden on public.pickup_runs;
 --   drop policy if exists tournament_match_runs_hidden on public.pickup_run_results;
+--   drop policy if exists tournament_match_runs_hidden on public.pickup_run_rsvps;
 --   drop policy if exists tournament_match_runs_hidden on public.pickup_run_team_assignments;
 --   drop function if exists public.tournament_unrate_tournament(uuid);
 --   drop function if exists public.tournament_forget_matches(uuid[]);
@@ -183,6 +187,12 @@ begin
       create policy tournament_match_runs_hidden on public.pickup_run_results as restrictive for select to anon, authenticated
         using (not public.is_tournament_run(run_id));
     end if;
+    -- A tournament match record never has RSVPs (nothing here creates one). This is a belt: if anything ever adds one, players still cannot see it.
+    if to_regclass('public.pickup_run_rsvps') is not null then
+      drop policy if exists tournament_match_runs_hidden on public.pickup_run_rsvps;
+      create policy tournament_match_runs_hidden on public.pickup_run_rsvps as restrictive for select to anon, authenticated
+        using (not public.is_tournament_run(run_id));
+    end if;
     if to_regclass('public.pickup_run_team_assignments') is not null then
       drop policy if exists tournament_match_runs_hidden on public.pickup_run_team_assignments;
       create policy tournament_match_runs_hidden on public.pickup_run_team_assignments as restrictive for select to anon, authenticated
@@ -191,6 +201,102 @@ begin
   end if;
 end
 $hide$;
+
+-- Does this tournament match's tournament count for the season? (false for a run that is not a tournament match)
+create or replace function public.tournament_run_counts_for_season(p_run_id uuid)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v boolean;
+begin
+  if to_regclass('public.tournament_match_runs') is null then return false; end if;
+  select coalesce(t.count_for_season, false) into v
+    from public.tournament_match_runs l
+    join public.tournament_matches m on m.id = l.match_id
+    join public.tournaments t on t.id = m.tournament_id
+   where l.run_id = p_run_id;
+  return coalesce(v, false);
+end;
+$$;
+revoke all on function public.tournament_run_counts_for_season(uuid) from public, anon, authenticated;
+grant execute on function public.tournament_run_counts_for_season(uuid) to service_role;
+
+-- refresh_player_game_stats, with the tournament guard. The body is the one from 20261101000200_player_game_stats.sql; the only change is
+-- the marked block at the top. It keeps profile game stats (record, partner and opponent averages) free of tournament matches that do not
+-- count for the season. The result and rating triggers call this function, so the guard holds whichever path writes a result.
+create or replace function public.refresh_player_game_stats(p_run_id uuid)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $body$
+declare
+  sid     uuid;
+  played  timestamptz;
+  res     public.pickup_run_results%rowtype;
+  scale_  numeric;
+  two     boolean;
+  n       integer;
+begin
+  -- TOURNAMENT: a tournament match that does not count for the season leaves no game stats: no profile record, no partner or opponent average.
+  if public.is_tournament_run(p_run_id) and not public.tournament_run_counts_for_season(p_run_id) then
+    delete from public.player_game_stats where run_id = p_run_id;
+    return 0;
+  end if;
+  select (to_jsonb(r) ->> 'tier_session_id')::uuid, r.start_at into sid, played from public.pickup_runs r where r.id = p_run_id;
+  if sid is null then return 0; end if;
+  select * into res from public.pickup_run_results where run_id = p_run_id;
+  two := found and res.total_teams = 2;
+  scale_ := coalesce((select value from public.rating_config where key = 'result_scale'), 12);
+  -- Only two-team games: with a third team there is no single opponent.
+  if exists (select 1 from public.pickup_run_team_assignments where run_id = p_run_id and team = 'C') then
+    delete from public.player_game_stats where run_id = p_run_id;
+    return 0;
+  end if;
+
+  with ev as (
+    select re.user_id, re.score_before, a.team
+      from public.rating_events re
+      join public.pickup_run_team_assignments a on a.run_id = p_run_id and a.user_id = re.user_id and a.team in ('A', 'B')
+     where re.session_id = sid
+  ),
+  tot as (select team, count(*) as n, sum(score_before) as s from ev group by team),
+  calc as (
+    select e.user_id, e.team,
+           (select (t.s - e.score_before) / nullif(t.n - 1, 0) from tot t where t.team = e.team)  as partner_avg,
+           (select t.s / t.n from tot t where t.team <> e.team)                                   as opp_avg,
+           (select t.s / t.n from tot t where t.team = e.team)                                    as own_avg
+      from ev e
+  ),
+  scored as (
+    select c.*,
+           case when two and c.opp_avg is not null then 1 / (1 + exp(-(c.own_avg - c.opp_avg) / scale_)) end as expected,
+           case when two then case when res.winning_team is null then 0.5 when res.winning_team = c.team then 1 else 0 end end as actual
+      from calc c
+  ),
+  up as (
+    insert into public.player_game_stats (run_id, user_id, team, played_at, partner_avg, opponent_avg, expected, actual, outcome, result_signal, verified, updated_at)
+    select p_run_id, s.user_id, s.team, played, round(s.partner_avg, 2), round(s.opp_avg, 2), round(s.expected, 4), s.actual,
+           case when s.actual is null then null when s.actual = 1 then 'W' when s.actual = 0 then 'L' else 'D' end,
+           case when s.expected is not null then round(s.actual - s.expected, 4) end,
+           two and res.verified_at is not null, now()
+      from scored s
+    on conflict (run_id, user_id) do update
+      set team = excluded.team, played_at = excluded.played_at, partner_avg = excluded.partner_avg, opponent_avg = excluded.opponent_avg,
+          expected = excluded.expected, actual = excluded.actual, outcome = excluded.outcome, result_signal = excluded.result_signal,
+          verified = excluded.verified, updated_at = now()
+    returning 1
+  )
+  select count(*) into n from up;
+  return n;
+end;
+$body$;
+revoke all on function public.refresh_player_game_stats(uuid) from public, anon, authenticated;
+grant execute on function public.refresh_player_game_stats(uuid) to service_role;
 
 -- ---------------------------------------------------------------------------------------------------------------------------
 -- 4. apply_result_rating, with the tournament rules. The body is the one from 20261101000300_rating_v2_expectations.sql; every change
@@ -467,7 +573,14 @@ begin
       delete from public.pickup_run_results where run_id = v_run;
       delete from public.pickup_run_team_assignments where run_id = v_run;
       if to_regclass('public.player_game_stats') is not null then delete from public.player_game_stats where run_id = v_run; end if;
-      delete from public.pickup_runs where id = v_run;
+      begin
+        delete from public.pickup_runs where id = v_run;
+      exception when foreign_key_violation then
+        -- production's delete guard (trg_pickup_runs_block_delete_with_players) refuses a run that has RSVPs or payments. A tournament match
+        -- record has neither, so this cannot happen from the app; if someone attached one by hand, the ratings are already back and the
+        -- record is left alone rather than blocking the admin.
+        raise warning 'tournament match record % was kept: it has RSVPs or payments', v_run;
+      end;
       if v_old_sid is not null then perform public.tournament_reapply_day(v_old_sid); end if;
     end if;
     delete from public.tournament_match_rating where match_id = p_match_id;
@@ -641,7 +754,11 @@ begin
     delete from public.pickup_run_results where run_id = r.run_id;
     delete from public.pickup_run_team_assignments where run_id = r.run_id;
     if to_regclass('public.player_game_stats') is not null then delete from public.player_game_stats where run_id = r.run_id; end if;
-    delete from public.pickup_runs where id = r.run_id;
+    begin
+      delete from public.pickup_runs where id = r.run_id;
+    exception when foreign_key_violation then
+      raise warning 'tournament match record % was kept: it has RSVPs or payments', r.run_id;
+    end;
     if r.sid is not null and not (r.sid = any (sids)) then sids := sids || r.sid; end if;
     n := n + 1;
   end loop;
