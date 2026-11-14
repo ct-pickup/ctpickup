@@ -1,5 +1,6 @@
 import { track } from "@/lib/analytics/analytics";
 import { useProfilePhoto } from "@/context/ProfilePhotoContext";
+import { useRatingGate } from "@/context/RatingGateContext";
 import { useSelectedRegion } from "@/context/SelectedRegionContext";
 import { hapticError } from "@/lib/haptics";
 import * as Sentry from "@sentry/react-native";
@@ -137,6 +138,7 @@ type PhotoModalState = {
 export function usePickupJoin() {
   const { region } = useSelectedRegion();
   const { ensurePhotoForGame, handlePhotoRequired } = useProfilePhoto();
+  const { handleRatingRequired } = useRatingGate();
   const [joinBusy, setJoinBusy] = useState(false);
   const [payBusy, setPayBusy] = useState(false);
   const [declineBusy, setDeclineBusy] = useState(false);
@@ -250,6 +252,7 @@ export function usePickupJoin() {
           return;
         }
         if (handlePhotoRequired(r.status, j)) return;
+        if (handleRatingRequired(r.status, j)) return;
         if (j.error === "friend_waiver_required") {
           const detail = typeof j.detail === "string" ? j.detail : "That player must accept the waiver first.";
           void hapticError();
@@ -278,7 +281,7 @@ export function usePickupJoin() {
         setJoinBusy(false);
       }
     },
-    [ensurePhotoForGame, handlePhotoRequired],
+    [ensurePhotoForGame, handlePhotoRequired, handleRatingRequired],
   );
 
   const payPickup = useCallback(
@@ -312,6 +315,7 @@ export function usePickupJoin() {
           await reload();
           return;
         }
+        if (handleRatingRequired(r.status, j)) return;
         void hapticError();
         Alert.alert("Can’t complete payment", payErrorMessage(r.status, j));
       } catch (e) {
@@ -324,7 +328,7 @@ export function usePickupJoin() {
         setPayBusy(false);
       }
     },
-    [],
+    [handleRatingRequired],
   );
 
   const declinePickup = useCallback(
@@ -465,6 +469,7 @@ export function usePickupJoin() {
           await reload();
           return;
         }
+        if (handleRatingRequired(r.status, j)) return;
         void hapticError();
         Alert.alert("Could not submit", commitErrorMessage(r.status, j));
       } catch (e) {
@@ -478,7 +483,7 @@ export function usePickupJoin() {
         setPendingSlotKey(null);
       }
     },
-    [],
+    [handleRatingRequired],
   );
 
   const commitAvailabilitySlots = useCallback(
@@ -511,6 +516,7 @@ export function usePickupJoin() {
           );
           const j = r.json as Record<string, unknown>;
           if (!r.ok) {
+            if (handleRatingRequired(r.status, j)) return false;
             void hapticError();
             Alert.alert("Could not submit", commitErrorMessage(r.status, j));
             return false;
@@ -523,7 +529,7 @@ export function usePickupJoin() {
         setPendingSlotKey(null);
       }
     },
-    [],
+    [handleRatingRequired],
   );
 
   return {

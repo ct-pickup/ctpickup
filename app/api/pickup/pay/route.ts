@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requestSiteUrlFromRequest } from "@/lib/requestSiteUrl";
 import { assertPickupStandingAllowsParticipation } from "@/lib/pickup/standing/participationGate";
 import { userHasAcceptedCurrentWaiver } from "@/lib/waiver/checkWaiverAccepted";
+import { ratingGateResponse } from "@/lib/ratings/pendingRating";
 import { PICKUP_FIELD_FEE_STRIPE_DESCRIPTION } from "@/lib/fees/refundPolicyCopy";
 import { paymentIntentIdFromCheckoutSession } from "@/lib/payments/stripeSessionIds";
 import { recordPlatformCheckoutStarted } from "@/lib/payments/recordCheckoutStarted";
@@ -47,6 +48,9 @@ export async function POST(req: Request) {
       { status: 403 },
     );
   }
+
+  const ratingGate = await ratingGateResponse(admin, user.id);
+  if (ratingGate) return ratingGate;
 
   const body = await req.json().catch(() => ({}));
   const mobileReturn = isMobileCheckoutReturn(body);

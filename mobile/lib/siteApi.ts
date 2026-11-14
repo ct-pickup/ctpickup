@@ -173,6 +173,18 @@ export async function postPickupCommit(
 }
 
 /** Server creates a Stripe Checkout session for a pending-payment RSVP and returns `{ url }`. */
+/** The game this player still has to rate, for the cards on Home and the Games tab (null while the flag is off for them). */
+export async function fetchPendingRating(accessToken: string): Promise<{ ok: boolean; status: number; json: unknown }> {
+  const origin = siteOrigin();
+  if (!origin) return { ok: false, status: 0, json: null };
+  const r = await fetch(`${origin}/api/sessions/pending-rating`, {
+    headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
+    cache: "no-store",
+  });
+  const json = await r.json().catch(() => null);
+  return { ok: r.ok, status: r.status, json };
+}
+
 export async function postPickupPay(
   accessToken: string,
   runId: string,

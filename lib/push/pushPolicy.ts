@@ -50,6 +50,7 @@ const KIND_CATEGORY: Record<string, PushCategory> = {
   pickup_waitlist_expiring: "reminders",
   pickup_promoted: "reminders",
   session_rate_reminder: "reminders",
+  rating_required_reminder: "reminders",
   tournament_starts_soon: "reminders",
   // results and awards
   pickup_result: "results",
