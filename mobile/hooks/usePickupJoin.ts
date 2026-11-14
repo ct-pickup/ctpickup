@@ -315,7 +315,6 @@ export function usePickupJoin() {
           await reload();
           return;
         }
-        if (handleRatingRequired(r.status, j)) return;
         void hapticError();
         Alert.alert("Can’t complete payment", payErrorMessage(r.status, j));
       } catch (e) {
@@ -328,7 +327,7 @@ export function usePickupJoin() {
         setPayBusy(false);
       }
     },
-    [handleRatingRequired],
+    [],
   );
 
   const declinePickup = useCallback(

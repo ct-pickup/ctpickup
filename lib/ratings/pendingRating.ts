@@ -14,7 +14,7 @@ import {
 
 /**
  * The one place "pending rating" is worked out on the server (the rule itself is in shared/ratingGate.ts). Used by:
- *   - the routes that join, RSVP, book or create a game (ratingGateResponse, a 409 "Rate your last game first")
+ *   - the routes that join, RSVP or create a game (ratingGateResponse, a 409 "Rate your last game first")
  *   - GET /api/sessions/pending-rating (the cards on Home and the Games tab)
  *   - the one reminder, 24 hours after kickoff (lib/ratings/ratingReminders.ts)
  *
@@ -187,7 +187,7 @@ export async function findPendingRating(admin: SupabaseClient, userId: string, n
 }
 
 /**
- * For the routes that join, RSVP, book or create a game. Null when the player may continue; otherwise the 409
+ * For the routes that join, RSVP, commit to or create a game (never pay). Null when the player may continue; otherwise the 409
  * "Rate your last game first" with the pending game's id. Off, exempt (admins) and any error all mean null.
  */
 export async function ratingGateResponse(

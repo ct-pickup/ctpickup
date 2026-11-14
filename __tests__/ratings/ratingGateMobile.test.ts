@@ -76,9 +76,9 @@ describe("when the game screen opens the ballot by itself", () => {
 describe("the 409 is handled everywhere a player joins, books or creates", () => {
   const join = src("mobile/hooks/usePickupJoin.ts");
 
-  it("joining, paying and both ways of committing to a slot", () => {
-    expect((join.match(/handleRatingRequired\(r\.status, j\)/g) ?? []).length).toBe(4);
-    for (const name of ["joinPickup", "payPickup", "commitAvailability", "commitAvailabilitySlots"]) {
+  it("joining and both ways of committing to a slot", () => {
+    expect((join.match(/handleRatingRequired\(r\.status, j\)/g) ?? []).length).toBe(3);
+    for (const name of ["joinPickup", "commitAvailability", "commitAvailabilitySlots"]) {
       const at = join.indexOf(`const ${name} = useCallback(`);
       expect(at, name).toBeGreaterThan(0);
       const end = join.indexOf("\n  );\n", at);
@@ -87,8 +87,8 @@ describe("the 409 is handled everywhere a player joins, books or creates", () =>
     }
   });
 
-  it("declining, leaving and saying you cannot make it are never stopped", () => {
-    for (const name of ["declinePickup", "recordCantMakeIt"]) {
+  it("paying, declining, leaving and saying you cannot make it are never stopped", () => {
+    for (const name of ["payPickup", "declinePickup", "recordCantMakeIt"]) {
       const at = join.indexOf(`const ${name} = useCallback(`);
       expect(at, name).toBeGreaterThan(0);
       const end = join.indexOf("\n  );\n", at);

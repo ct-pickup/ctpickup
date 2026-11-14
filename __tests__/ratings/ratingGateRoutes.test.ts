@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ratingWorld, NOW, HOUR, iso } from "../helpers/ratingWorld";
 import type { FakeDb } from "../helpers/fakeSupabase";
@@ -51,7 +52,6 @@ const ROUTES: Record<string, { call: Call; ungated?: Call }> = {
     call: (t) => commitPost(req("/api/pickup/commit", t, { run_id: "r2", state: "available", slot_label: "7 PM" })),
     ungated: (t) => commitPost(req("/api/pickup/commit", t, { run_id: "r2", state: "declined" })),
   },
-  "pay": { call: (t) => payPost(req("/api/pickup/pay", t, { run_id: "r2" })) },
   "create a game": {
     call: (t) => createPost(req("/api/sessions/create", t, { location_text: "Field 9", start_date: "2099-01-01", start_time: "19:00", capacity: 10 })),
   },
@@ -131,6 +131,19 @@ describe.each(Object.entries(ROUTES))("%s", (_name, route) => {
   }
 });
 
+describe("paying is never stopped by a pending rating", () => {
+  it("a player who owes a rating can still pay for a spot they already hold, flag on for everyone", async () => {
+    setFlag(h.db as FakeDb, { enabled: true });
+    expect(await isRatingRequired(await payPost(req("/api/pickup/pay", "p1", { run_id: "r2" })))).toBe(false);
+    expect(await isRatingRequired(await payPost(req("/api/pickup/pay", "p3", { run_id: "r2" })))).toBe(false);
+  });
+
+  it("the pay route has no rating gate in it at all", () => {
+    const route = readFileSync(new URL("../../app/api/pickup/pay/route.ts", import.meta.url), "utf8");
+    expect(route).not.toMatch(/ratingGate|pendingRating|rating_required/);
+  });
+});
+
 describe("the cards read the same answer", () => {
   const get = (t: string) => pendingGet(req("/api/sessions/pending-rating", t, undefined, "GET"));
 
@@ -160,7 +173,7 @@ describe("the cards read the same answer", () => {
   it("any failure reads as nothing pending: the gate never locks anyone out", async () => {
     (h.db as FakeDb).failTables.pickup_runs = "connection reset";
     expect(await (await get("p1")).json()).toEqual({ pending: null });
-    expect(await isRatingRequired(await ROUTES["pay"]!.call("p1"))).toBe(false);
+    expect(await isRatingRequired(await ROUTES["RSVP join"]!.call("p1"))).toBe(false);
   });
 });
 
