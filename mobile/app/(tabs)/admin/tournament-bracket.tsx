@@ -36,6 +36,7 @@ type Match = {
   score_b: number | null;
   winner_id: string | null;
   is_bye: boolean;
+  started_at?: string | null;
   completed_at: string | null;
 };
 type GroupMember = {
@@ -122,6 +123,8 @@ export default function TournamentBracketScreen() {
   const [goals, setGoals] = useState<GoalDraft[]>([]);
   const [playerPickerIndex, setPlayerPickerIndex] = useState<number | null>(null);
   const [playerSearch, setPlayerSearch] = useState("");
+  /** Who won on penalties, for a knockout match whose score is level. */
+  const [penaltyWinner, setPenaltyWinner] = useState<string | null>(null);
 
   useEffect(() => {
     navigation.setOptions({ title: "Tournament Bracket" });
@@ -207,10 +210,11 @@ export default function TournamentBracketScreen() {
     };
   }, [supabase, tournament_id, load]);
 
-  async function postBracket(action: string, extra?: Record<string, unknown>) {
+  type BracketPostResult = { ok?: boolean; message?: string; error?: string; warnings?: string[]; status?: number; detail?: unknown };
+  async function postBracket(action: string, extra?: Record<string, unknown>): Promise<BracketPostResult> {
     if (!token) return { error: "Not signed in" };
     const res = await postAdminTournamentBracket(token, { action, tournament_id, ...extra });
-    if (!res.ok) return { error: res.error };
+    if (!res.ok) return { error: res.error, status: res.status, detail: res.detail };
     return res.data ?? { ok: true };
   }
 
@@ -255,6 +259,7 @@ export default function TournamentBracketScreen() {
   }
 
   function closeScoreModal() {
+    setPenaltyWinner(null);
     setScoreModal(null);
     setScoreA("");
     setScoreB("");
@@ -268,6 +273,7 @@ export default function TournamentBracketScreen() {
     setScoreModal(match);
     setScoreA(match.score_a !== null ? String(match.score_a) : "");
     setScoreB(match.score_b !== null ? String(match.score_b) : "");
+    setPenaltyWinner(match.score_a !== null && match.score_a === match.score_b ? match.winner_id : null);
     setGoals(goalsToDraft(matchGoalsById[match.id] ?? []));
     setPlayerPickerIndex(null);
     setPlayerSearch("");
@@ -285,12 +291,53 @@ export default function TournamentBracketScreen() {
     });
   }
 
+  const isKnockoutMatch = (m: Match | null) => !!m && (m.stage === "qf" || m.stage === "sf" || m.stage === "final");
+  const parsedA = parseInt(scoreA, 10);
+  const parsedB = parseInt(scoreB, 10);
+  /** A knockout match can't end level: when the score is level the admin names who won on penalties. */
+  const needsPenaltyWinner = isKnockoutMatch(scoreModal) && Number.isFinite(parsedA) && Number.isFinite(parsedB) && parsedA === parsedB;
+
+  async function sendScore(sa: number, sb: number, payloadGoals: unknown[], confirmReset: boolean) {
+    if (!scoreModal) return;
+    setBusy("score");
+    const j = await postBracket("log_score", {
+      match_id: scoreModal.id,
+      score_a: sa,
+      score_b: sb,
+      goals: payloadGoals,
+      ...(needsPenaltyWinner ? { winner_id: penaltyWinner } : {}),
+      ...(confirmReset ? { confirm_reset: true } : {}),
+    });
+    setBusy(null);
+    if (j.error) {
+      const detail = j.detail as { code?: string; affected?: string[] } | undefined;
+      if (detail?.code === "confirm_reset") {
+        const list = Array.isArray(detail.affected) && detail.affected.length ? detail.affected.join(", ") : "later matches";
+        Alert.alert("This changes who plays next", `Saving will clear the result of: ${list}. Those matches get the new teams.`, [
+          { text: "Cancel", style: "cancel" },
+          { text: "Clear and save", style: "destructive", onPress: () => void sendScore(sa, sb, payloadGoals, true) },
+        ]);
+        return;
+      }
+      Alert.alert("Error", j.error);
+      return;
+    }
+    const warnings = j.warnings;
+    closeScoreModal();
+    void load();
+    if (Array.isArray(warnings) && warnings.length) Alert.alert("Saved", warnings.join("\n"));
+  }
+
   async function onLogScore() {
     if (!scoreModal) return;
     const sa = parseInt(scoreA, 10);
     const sb = parseInt(scoreB, 10);
     if (!Number.isFinite(sa) || !Number.isFinite(sb) || sa < 0 || sb < 0) {
       Alert.alert("Invalid scores", "Enter a non-negative whole number for each team.");
+      return;
+    }
+    if (needsPenaltyWinner && !penaltyWinner) {
+      Alert.alert("Pick the winner", "A knockout match can't end level. Pick the team that won on penalties.");
       return;
     }
     const payloadGoals = goals
@@ -301,19 +348,17 @@ export default function TournamentBracketScreen() {
         minute: g.minute.trim() ? parseInt(g.minute, 10) : null,
         is_own_goal: g.is_own_goal,
       }));
-    setBusy("score");
-    const j = await postBracket("log_score", {
-      match_id: scoreModal.id,
-      score_a: sa,
-      score_b: sb,
-      goals: payloadGoals,
-    });
+    await sendScore(sa, sb, payloadGoals, false);
+  }
+
+  async function onStartMatch(match: Match) {
+    setBusy(`start:${match.id}`);
+    const j = await postBracket("start_match", { match_id: match.id });
     setBusy(null);
     if (j.error) {
       Alert.alert("Error", j.error);
       return;
     }
-    closeScoreModal();
     void load();
   }
 
@@ -338,9 +383,13 @@ export default function TournamentBracketScreen() {
   const renderMatchRow = (match: Match) => {
     const scored = match.score_a !== null && match.score_b !== null;
     const canLog = !match.is_bye && !!match.team_b_id;
+    const knockout = match.stage === "qf" || match.stage === "sf" || match.stage === "final";
+    const penalties = knockout && !!match.completed_at && !!match.winner_id && scored && match.score_a === match.score_b;
+    const inProgress = !match.completed_at && !!match.started_at && canLog;
+    const canStart = canLog && !match.completed_at && !match.started_at;
     return (
+      <View key={match.id}>
       <Pressable
-        key={match.id}
         onPress={() => (canLog ? openScoreModal(match) : undefined)}
         disabled={!canLog}
         style={({ pressed }) => [
@@ -365,7 +414,7 @@ export default function TournamentBracketScreen() {
             {match.is_bye ? "BYE" : scored ? `${match.score_a} - ${match.score_b}` : "vs"}
           </Text>
           {canLog ? (
-            <Text style={styles.logHint}>{scored ? "Edit score" : "Log score"}</Text>
+            <Text style={styles.logHint}>{scored ? "Edit score" : inProgress ? "In progress" : "Log score"}</Text>
           ) : null}
         </View>
         <View style={{ flex: 1, alignItems: "flex-end" }}>
@@ -374,6 +423,24 @@ export default function TournamentBracketScreen() {
           </Text>
         </View>
       </Pressable>
+      {penalties ? (
+        <Text style={styles.penaltyNote}>{teamMap[match.winner_id!]?.team_name || "Winner"} won on penalties</Text>
+      ) : null}
+      {knockout && match.completed_at && !match.winner_id ? (
+        <Text style={styles.penaltyNote}>No winner saved. Edit the score and pick who won.</Text>
+      ) : null}
+      {canStart ? (
+        <Pressable
+          onPress={() => void onStartMatch(match)}
+          disabled={busy === `start:${match.id}`}
+          style={({ pressed }) => [styles.startBtn, pressed && { opacity: 0.88 }, busy === `start:${match.id}` && styles.disabled]}
+          accessibilityRole="button"
+          accessibilityLabel="Mark this match as in progress"
+        >
+          <Text style={styles.startBtnText}>{busy === `start:${match.id}` ? "Starting..." : "Start match"}</Text>
+        </Pressable>
+      ) : null}
+      </View>
     );
   };
 
@@ -529,6 +596,30 @@ export default function TournamentBracketScreen() {
                     </View>
                   </View>
 
+                  {needsPenaltyWinner ? (
+                    <View style={styles.penaltyBox}>
+                      <Text style={styles.modalSubtitle}>Level after full time</Text>
+                      <Text style={styles.mutedSmall}>A knockout match cannot end level. Pick the team that won on penalties.</Text>
+                      <View style={styles.penaltyRow}>
+                        {[scoreModal.team_a_id, scoreModal.team_b_id].map((id) =>
+                          id ? (
+                            <Pressable
+                              key={id}
+                              onPress={() => setPenaltyWinner(id)}
+                              style={[styles.penaltyPick, penaltyWinner === id && styles.penaltyPickOn]}
+                              accessibilityRole="button"
+                              accessibilityState={{ selected: penaltyWinner === id }}
+                            >
+                              <Text style={[styles.penaltyPickText, penaltyWinner === id && styles.penaltyPickTextOn]} numberOfLines={1}>
+                                {teamMap[id]?.team_name || "Team"}
+                              </Text>
+                            </Pressable>
+                          ) : null,
+                        )}
+                      </View>
+                    </View>
+                  ) : null}
+
                   <Text style={styles.modalSubtitle}>Goal scorers</Text>
                   {rosterPlayers.length === 0 ? (
                     <Text style={styles.mutedSmall}>No roster players loaded yet. Add goals after roster is set.</Text>
@@ -676,6 +767,35 @@ function make_styles() {
   btnSecondary: { backgroundColor: themeColor().pitchPanel, borderWidth: 1, borderColor: themeColor().pitchText },
   btnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
   disabled: { opacity: 0.5 },
+  penaltyNote: { color: themeColor().muted, fontSize: 12, fontFamily: "Inter_400Regular", marginTop: -4, marginBottom: 6, paddingHorizontal: 12 },
+  startBtn: {
+    alignSelf: "flex-start",
+    marginTop: -2,
+    marginBottom: 8,
+    marginLeft: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: themeColor().pitchText,
+    backgroundColor: themeColor().pitchPanel,
+  },
+  startBtnText: { color: themeColor().onPitchPanel, fontSize: 12, fontFamily: "Inter_700Bold", fontWeight: "800" },
+  penaltyBox: { marginBottom: 12 },
+  penaltyRow: { flexDirection: "row", gap: 8 },
+  penaltyPick: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+    alignItems: "center",
+    backgroundColor: themeColor().card,
+    borderWidth: 1,
+    borderColor: themeColor().line,
+  },
+  penaltyPickOn: { backgroundColor: themeColor().pitchPanel, borderColor: themeColor().pitchText },
+  penaltyPickText: { color: themeColor().text, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  penaltyPickTextOn: { color: themeColor().pitchText },
   section: { marginBottom: 20 },
   sectionTitle: {
     color: themeColor().pitchText,
