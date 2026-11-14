@@ -28,6 +28,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import { CtPlusProvider } from "@/context/CtPlusContext";
 import { ProfileCompletionProvider } from "@/context/ProfileCompletionContext";
 import { ProfilePhotoProvider } from "@/context/ProfilePhotoContext";
+import { RatingGateProvider } from "@/context/RatingGateContext";
 import { FeatureFlagsProvider } from "@/context/FeatureFlagsContext";
 import { ProfileAdminProvider } from "@/context/ProfileAdminContext";
 import { ReviewModeProvider } from "@/context/ReviewModeContext";
@@ -178,6 +179,7 @@ function RootLayoutNav() {
                     <AccountIntroReplayProvider>
                     <CtPlusProvider>
                     <ProfilePhotoProvider>
+                    <RatingGateProvider>
                       <View style={{ flex: 1 }}>
                         {minVersionBlocked ? <UpdateRequiredGate /> : null}
                         <ReviewModeBanner />
@@ -550,6 +552,7 @@ function RootLayoutNav() {
                         <AppOpeningTheme key={openingThemeKey} />
                         <AppLockOverlay />
                       </View>
+                    </RatingGateProvider>
                     </ProfilePhotoProvider>
                     </CtPlusProvider>
                     </AccountIntroReplayProvider>

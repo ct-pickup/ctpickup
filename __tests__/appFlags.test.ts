@@ -89,7 +89,7 @@ describe("migration 20261024000000_app_flags.sql", () => {
 });
 
 describe("every flag is present on both the server and the app, and all are OFF by default", () => {
-  const ALL = ["fields", "paid_plans", "notification_settings", "analytics_client", "play_again", "host_follow_alerts", "rating_v2", "rating_results"];
+  const ALL = ["fields", "paid_plans", "notification_settings", "analytics_client", "play_again", "host_follow_alerts", "rating_v2", "rating_results", "require_ratings"];
   it("lists the same flags in the server list and the app list", () => {
     expect([...FLAG_KEYS].sort()).toEqual([...ALL].sort());
     expect(Object.keys(FLAGS_OFF).sort()).toEqual([...ALL].sort());

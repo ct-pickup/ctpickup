@@ -1,6 +1,7 @@
 import { goBack } from "@/lib/goBack";
 import { useAuth } from "@/context/AuthContext";
 import { useProfilePhoto } from "@/context/ProfilePhotoContext";
+import { useRatingGate } from "@/context/RatingGateContext";
 import { siteOrigin } from "@/lib/env";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -83,6 +84,7 @@ export default function SessionCreateScreen() {
   const router = useRouter();
   const { session, supabase } = useAuth();
   const { ensurePhotoForGame, handlePhotoRequired } = useProfilePhoto();
+  const { handleRatingRequired } = useRatingGate();
   const [step, setStep] = useState<Step>(1);
 
   // Opened from a field (and maybe an approved request): the field is pre-filled and the game is linked to it.
@@ -380,6 +382,7 @@ export default function SessionCreateScreen() {
       const j = (await r.json().catch(() => null)) as { ok?: boolean; error?: string; run_id?: string } | null;
 
       if (handlePhotoRequired(r.status, j)) return;
+      if (handleRatingRequired(r.status, j)) return;
       if (!r.ok || !j?.ok) {
         Alert.alert("Error", j?.error === "feature_off" ? "Creating a game at a field isn’t available yet." : (j?.error ?? "Failed to create session."));
         return;

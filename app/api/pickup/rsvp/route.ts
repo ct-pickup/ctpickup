@@ -7,6 +7,7 @@ import { lookupPickupPlayerByUsernameOrEmail } from "@/lib/pickup/lookupPlayerBy
 import { requestSiteUrlFromRequest } from "@/lib/requestSiteUrl";
 import { assertPickupStandingAllowsParticipation } from "@/lib/pickup/standing/participationGate";
 import { userHasAcceptedCurrentWaiver } from "@/lib/waiver/checkWaiverAccepted";
+import { ratingGateResponse } from "@/lib/ratings/pendingRating";
 import { profilePhotoGate } from "@/lib/profilePhoto/requirement";
 import { PICKUP_FIELD_FEE_STRIPE_DESCRIPTION } from "@/lib/fees/refundPolicyCopy";
 import { paymentIntentIdFromCheckoutSession } from "@/lib/payments/stripeSessionIds";
@@ -339,6 +340,10 @@ export async function POST(req: Request) {
       { status: 403 },
     );
   }
+
+  // Joining (for yourself or a friend) needs your last game rated first. Declining and leaving are never blocked.
+  const ratingGate = await ratingGateResponse(admin, user.id);
+  if (ratingGate) return ratingGate;
 
   if (payForFriend) {
     const waiverFriend = await userHasAcceptedCurrentWaiver(targetUserId);

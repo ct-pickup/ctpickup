@@ -6,6 +6,8 @@ import { MOTION } from "@/lib/motion";
 import Reanimated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { useAuth } from "@/context/AuthContext";
 import { useProfilePhoto } from "@/context/ProfilePhotoContext";
+import { useRatingGate } from "@/context/RatingGateContext";
+import { shouldOpenBallot } from "@/lib/pendingRatingCore";
 import { useProfileAdmin } from "@/context/ProfileAdminContext";
 import { siteOrigin } from "@/lib/env";
 import { LinkedField } from "@/components/fields/LinkedField";
@@ -175,12 +177,13 @@ const HOST_RATING_CATEGORIES: Array<{ key: string; label: string; hint: string }
 
 export default function SessionDetailScreen() {
   useThemedStyles(publish_s);
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, ballot: ballotParam } = useLocalSearchParams<{ id: string; ballot?: string }>();
   useTrackOnce("run_viewed", id ?? null, { run_id: id ?? "" });
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { session, supabase } = useAuth();
   const { ensurePhotoForGame, handlePhotoRequired } = useProfilePhoto();
+  const { handleRatingRequired } = useRatingGate();
   const { isAdmin } = useProfileAdmin();
   const fixture = useMemo(() => (devFixtures && id ? devFixtures.session(id) : null), [id]);
   const fieldPhotos = useFieldPhotos(id && !fixture ? [id] : []);
@@ -258,6 +261,26 @@ export default function SessionDetailScreen() {
 
   const myUserId = session?.user?.id;
   const isHost = run?.created_by === myUserId;
+
+  // Opened from the "Rate your last game first" sheet, a "Rate your game" card or the reminder (ballot=1): open the ballot by itself, once.
+  const [ballotOpened, setBallotOpened] = useState(false);
+  const openBallotNow = shouldOpenBallot({
+    ballotParam,
+    loaded: !loading && run !== null,
+    joined: myStatus === "confirmed" || myStatus === "pending_payment",
+    isHost,
+    hasVoted,
+    alreadyOpened: ballotOpened,
+  });
+  useEffect(() => {
+    if (!openBallotNow) return;
+    const timer = setTimeout(() => {
+      setBallotOpened(true);
+      setVoteStep(1);
+      setVoteOpen(true);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [openBallotNow]);
   const isCompleted = run?.status === "completed";
   const canEditPhoto = Boolean(myUserId) && (isHost || isAdmin) && !fixture;
 
@@ -1205,6 +1228,7 @@ export default function SessionDetailScreen() {
       });
       const j = await r.json().catch(() => null) as { ok?: boolean; error?: string; checkout_url?: string; status?: string } | null;
       if (handlePhotoRequired(r.status, j)) return;
+      if (handleRatingRequired(r.status, j)) return;
       if (!r.ok || !j?.ok) { Alert.alert("Error", j?.error ?? "Could not RSVP."); return; }
 
       // If checkout URL returned, open Stripe payment
