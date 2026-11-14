@@ -25,6 +25,7 @@ import type Stripe from "stripe";
 import { HUB_REGIONS } from "@/lib/pickup/hubRegions";
 import { fetchRunTimeTbdIds, writeWithOptionalTimeTbd } from "@/lib/pickup/runTimeTbd";
 import { parsePickupStartInput, type PickupStartInput } from "@/lib/datetime/easternWallTime";
+import { uncountedTournamentRunIds } from "@/lib/tournament/hiddenRuns";
 
 export const runtime = "nodejs";
 
@@ -218,8 +219,10 @@ export async function GET(req: Request) {
       admin.from("pickup_run_results").select("goalie_of_the_day").in("goalie_of_the_day", availUserIds),
     ]);
 
+    // Hidden tournament match records do not feed team balance unless the tournament counts for the season.
+    const hiddenRuns = await uncountedTournamentRunIds(admin, (assignRes.data || []).map((row: { run_id: string }) => String(row.run_id || "")).filter(Boolean));
     const runIds = Array.from(
-      new Set((assignRes.data || []).map((row: { run_id: string }) => String(row.run_id || "")).filter(Boolean)),
+      new Set((assignRes.data || []).map((row: { run_id: string }) => String(row.run_id || "")).filter((id) => id && !hiddenRuns.has(id))),
     );
     const resultsRes = runIds.length
       ? await admin.from("pickup_run_results").select("run_id,winning_team").in("run_id", runIds)
@@ -234,7 +237,7 @@ export async function GET(req: Request) {
       const runId = String((row as { run_id: string }).run_id || "");
       const team = String((row as { team: string }).team || "");
       const wt = winTeamByRun.get(runId);
-      if (!uid || !runId || !wt) continue;
+      if (!uid || !runId || !wt || hiddenRuns.has(runId)) continue;
       if (team === wt) statsWins.set(uid, (statsWins.get(uid) || 0) + 1);
       else statsLosses.set(uid, (statsLosses.get(uid) || 0) + 1);
     }

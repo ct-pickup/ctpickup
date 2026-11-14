@@ -3,6 +3,7 @@ import {
   fetchAdminTournamentBracket,
   postAdminTournamentBracket,
   type AdminBracketMatchGoal,
+  type AdminBracketRatingOptions,
   type AdminBracketRosterPlayer,
 } from "@/lib/adminApi";
 import { siteOrigin } from "@/lib/env";
@@ -17,6 +18,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -24,6 +26,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { headline, themeColor, useThemedStyles } from "@/theme";
+import { ratingReasonText } from "@shared/ratedTournament";
 type Team = { id: string; team_name: string; captain_name: string };
 type Match = {
   id: string;
@@ -116,6 +119,8 @@ export default function TournamentBracketScreen() {
   const [teamMap, setTeamMap] = useState<Record<string, Team>>({});
   const [rosterPlayers, setRosterPlayers] = useState<AdminBracketRosterPlayer[]>([]);
   const [matchGoalsById, setMatchGoalsById] = useState<Record<string, AdminBracketMatchGoal[]>>({});
+  const [ratingOptions, setRatingOptions] = useState<AdminBracketRatingOptions | null>(null);
+  const [matchRatings, setMatchRatings] = useState<Record<string, { counted: boolean; reason: string | null }>>({});
 
   const [scoreModal, setScoreModal] = useState<Match | null>(null);
   const [scoreA, setScoreA] = useState("");
@@ -153,6 +158,8 @@ export default function TournamentBracketScreen() {
       setStandings((data.standings ?? []) as GroupMember[]);
       setRosterPlayers(Array.isArray(data.roster_players) ? data.roster_players : []);
       setMatchGoalsById(parseMatchGoals(data.match_goals));
+      setRatingOptions(data.rating_options ?? null);
+      setMatchRatings(data.match_ratings ?? {});
     } finally {
       setLoading(false);
     }
@@ -210,12 +217,23 @@ export default function TournamentBracketScreen() {
     };
   }, [supabase, tournament_id, load]);
 
-  type BracketPostResult = { ok?: boolean; message?: string; error?: string; warnings?: string[]; status?: number; detail?: unknown };
+  type BracketPostResult = { ok?: boolean; message?: string; error?: string; warnings?: string[]; status?: number; detail?: unknown; rating?: { status: string; counted: boolean; reason: string | null } };
   async function postBracket(action: string, extra?: Record<string, unknown>): Promise<BracketPostResult> {
     if (!token) return { error: "Not signed in" };
     const res = await postAdminTournamentBracket(token, { action, tournament_id, ...extra });
     if (!res.ok) return { error: res.error, status: res.status, detail: res.detail };
     return res.data ?? { ok: true };
+  }
+
+  /** Rated and Counts for season. Rated is refused by the server once a match has a score; the switch is also off then. */
+  async function onSetRatingOption(patch: { rated?: boolean; count_for_season?: boolean }) {
+    setBusy("rating");
+    const j = await postBracket("set_rating_options", patch);
+    setBusy(null);
+    if (j.error) {
+      Alert.alert("Can’t change that", j.error);
+    }
+    void load();
   }
 
   async function onGenerate() {
@@ -322,10 +340,12 @@ export default function TournamentBracketScreen() {
       Alert.alert("Error", j.error);
       return;
     }
-    const warnings = j.warnings;
+    const warnings = [...(Array.isArray(j.warnings) ? j.warnings : [])];
+    // A rated match that did not count says why, in plain words. A match that counted, or any match of a tournament that is not rated, adds nothing here.
+    if (j.rating && j.rating.status === "skipped" && j.rating.reason) warnings.push(ratingReasonText(j.rating.reason));
     closeScoreModal();
     void load();
-    if (Array.isArray(warnings) && warnings.length) Alert.alert("Saved", warnings.join("\n"));
+    if (warnings.length) Alert.alert("Saved", warnings.join("\n"));
   }
 
   async function onLogScore() {
@@ -426,6 +446,9 @@ export default function TournamentBracketScreen() {
       {penalties ? (
         <Text style={styles.penaltyNote}>{teamMap[match.winner_id!]?.team_name || "Winner"} won on penalties</Text>
       ) : null}
+      {ratingOptions?.rated && matchRatings[match.id] ? (
+        <Text style={styles.penaltyNote}>{ratingReasonText(matchRatings[match.id]!.counted ? null : matchRatings[match.id]!.reason)}</Text>
+      ) : null}
       {knockout && match.completed_at && !match.winner_id ? (
         <Text style={styles.penaltyNote}>No winner saved. Edit the score and pick who won.</Text>
       ) : null}
@@ -461,6 +484,39 @@ export default function TournamentBracketScreen() {
 
         <Text style={styles.title}>Bracket</Text>
         <Text style={styles.sub}>{teams.length} confirmed teams · tap a match to log score</Text>
+
+        {ratingOptions ? (
+          <View style={styles.ratingCard} accessibilityLabel="Rating settings">
+            <View style={styles.ratingRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.ratingTitle}>{ratingOptions.rated_label}</Text>
+                <Text style={styles.ratingNote}>{ratingOptions.rated_note}</Text>
+              </View>
+              <Switch
+                value={ratingOptions.rated}
+                onValueChange={(v) => void onSetRatingOption({ rated: v })}
+                disabled={ratingOptions.rated_locked || busy === "rating"}
+                trackColor={{ false: themeColor().overlayStrong, true: themeColor().pitch }}
+                thumbColor={themeColor().text}
+                accessibilityLabel="Rated"
+              />
+            </View>
+            <View style={[styles.ratingRow, styles.ratingRowDivider]}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.ratingTitle}>{ratingOptions.season_label}</Text>
+                <Text style={styles.ratingNote}>{ratingOptions.season_note}</Text>
+              </View>
+              <Switch
+                value={ratingOptions.count_for_season}
+                onValueChange={(v) => void onSetRatingOption({ count_for_season: v })}
+                disabled={busy === "rating"}
+                trackColor={{ false: themeColor().overlayStrong, true: themeColor().pitch }}
+                thumbColor={themeColor().text}
+                accessibilityLabel="Counts for season"
+              />
+            </View>
+          </View>
+        ) : null}
 
         <View style={styles.btnRow}>
           <Pressable onPress={onGenerate} disabled={!!busy} style={[styles.btn, busy === "generate" && styles.disabled]}>
@@ -767,6 +823,11 @@ function make_styles() {
   btnSecondary: { backgroundColor: themeColor().pitchPanel, borderWidth: 1, borderColor: themeColor().pitchText },
   btnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
   disabled: { opacity: 0.5 },
+  ratingCard: { backgroundColor: themeColor().card, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, padding: 14, marginBottom: 16 },
+  ratingRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  ratingRowDivider: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: themeColor().line },
+  ratingTitle: { color: themeColor().text, fontSize: 15, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  ratingNote: { color: themeColor().muted, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17, marginTop: 2 },
   penaltyNote: { color: themeColor().muted, fontSize: 12, fontFamily: "Inter_400Regular", marginTop: -4, marginBottom: 6, paddingHorizontal: 12 },
   startBtn: {
     alignSelf: "flex-start",

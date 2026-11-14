@@ -136,3 +136,37 @@ describe("scripts/test-tournament/cleanup.sql", () => {
     expect(c).toMatch(/Nothing to clean up: no tournament with slug/);
   });
 });
+
+describe("scripts/test-tournament/rated-demo.sql", () => {
+  const rated = readFileSync(new URL("../../scripts/test-tournament/rated-demo.sql", import.meta.url), "utf8");
+  const c = code(rated);
+
+  it("is one transaction that only touches the test tournament, found by slug and title together", () => {
+    expect(c).toMatch(/^begin;$/m);
+    expect(c).toMatch(/^commit;$/m);
+    expect(c).toMatch(/where slug = c_slug and title = c_title/);
+    expect(c).toMatch(/c_slug  constant text := 'test-bracket-demo'/);
+    for (const m of c.matchAll(/\b(update|delete from|insert into) public\.(\w+)/g)) expect(["tournament_roster", "tournaments"]).toContain(m[2]);
+    expect(c.replace(/\(delete me\)/g, "")).not.toMatch(/\bdelete\b|\btruncate\b|\bdrop (table|column|function|policy)\b/i);
+  });
+
+  it("refuses placeholders, unknown profiles, existing captains, a scored match and a database without the migrations", () => {
+    expect(c).toMatch(/still the placeholders/);
+    expect(c).toMatch(/are not in public\.profiles/);
+    expect(c).toMatch(/already a captain of the test tournament/);
+    expect(c).toMatch(/already has a score, so Rated can no longer be changed/);
+    expect(c).toMatch(/20261106000000\) has not been applied/);
+    expect(c).toMatch(/Apply 20261104000000_tournament_rated_and_match_runs\.sql first/);
+  });
+
+  it("sets rated on and leaves count_for_season off, and does not touch the app-wide rating switches", () => {
+    expect(c).toMatch(/update public\.tournaments set rated = true, count_for_season = false where id = v_tid/);
+    expect(c).not.toMatch(/app_flags|rating_v2|rating_results/);
+    expect(rated).toMatch(/does not touch those switches/);
+  });
+
+  it("holds no real ids, names or emails", () => {
+    expect(rated).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-(?!0{10})[0-9a-f]{12}/i);
+    expect(rated).not.toMatch(/@[a-z0-9-]+\.[a-z]{2,}/i);
+  });
+});

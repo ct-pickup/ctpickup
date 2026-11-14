@@ -9,6 +9,9 @@
 -- Rows are matched by the tournament's id only, so anything real players added to this tournament while it was active goes too.
 -- It removes data only: it does not touch any profile, and it sends no notification.
 --
+-- If the tournament was RATED and matches were scored, it first takes every rating change back out (public.tournament_unrate_tournament),
+-- so the test accounts end exactly where they started, and removes the hidden game records and the day rating sessions it created.
+--
 -- It will NOT delete if the tournament has payment records (a real captain paid). It stops and rolls back so you can refund first.
 --
 -- It then counts what is left for the tournament in every table, and rolls back with an error if anything remains.
@@ -46,6 +49,14 @@ begin
     if v_n > 0 then
       raise exception 'The test tournament has % payment record(s). Refund them first. Nothing was deleted.', v_n;
     end if;
+  end if;
+
+  -- Rated test tournament: take every rating effect back out, and remove the hidden game records and rating sessions it made, BEFORE
+  -- the links below are deleted. (Deleting the links first would leave those records behind and the ratings they moved unreversed.)
+  -- Does nothing when the rated tournaments migration has not been applied.
+  if to_regprocedure('public.tournament_unrate_tournament(uuid)') is not null then
+    execute 'select public.tournament_unrate_tournament($1)' into v_n using v_tid;
+    raise notice 'Took the rating effect of % scored match record(s) back out.', v_n;
   end if;
 
   -- Children first. Each row: table, and the condition that ties it to this tournament ($1 is the tournament id).
