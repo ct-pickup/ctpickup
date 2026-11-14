@@ -11,6 +11,10 @@ import { FieldsPanel } from "@/components/fields/FieldsPanel";
 import { useFieldPhotos } from "@/components/photo";
 import { usePlayedWith } from "@/components/pickup/PlayedWithRow";
 import { MatchLogRow, SeasonHeaderCard, SeasonRatingCard } from "@/components/season/SeasonPieces";
+import { AnimatedPressScale } from "@/components/AnimatedPressScale";
+import { SelectionPill, useSelectionPill } from "@/components/motion/SelectionPill";
+import { StaggerIn } from "@/components/motion/StaggerIn";
+import { MOTION } from "@/lib/motion";
 import { toggleDevPreview, useDevPreview } from "@/lib/devPreview";
 import { useTrackOnce } from "@/lib/analytics/helpers";
 import { fetchBestGames, type BestGame, type PlayedWithSummary } from "@/lib/matchApi";
@@ -33,7 +37,6 @@ const EMPTY_SEASON: SeasonData = {
   games: 0,
   potdCount: 0,
   form: [],
-  points: null,
   card: null,
   upcoming: [],
   crowds: new Map(),
@@ -101,6 +104,7 @@ export default function GamesTabScreen() {
     if (params.view === "fields" || params.view === "events") setView(params.view);
   }, [params.view]);
   const view = fieldsOn ? chosenView : "season";
+  const viewPill = useSelectionPill<string>(view);
   const [variantIndex, setVariantIndex] = useState(0);
   const variant = FIXTURE_VARIANTS[variantIndex % FIXTURE_VARIANTS.length]!;
   const fixture = useMemo(
@@ -162,16 +166,19 @@ export default function GamesTabScreen() {
 
       {fieldsOn ? (
       <View style={styles.toggle} accessibilityRole="tablist">
+        <SelectionPill style={viewPill.pillStyle} />
         {(["season", "fields", "events"] as const).map((v) => (
-          <Pressable
+          <AnimatedPressScale
             key={v}
+            onLayout={viewPill.onLayoutFor(v)}
+            pressedScale={MOTION.pressScale.chip}
             onPress={() => setView(v)}
-            style={[styles.toggleBtn, view === v && styles.toggleBtnOn]}
+            style={[styles.toggleBtn, view === v && !viewPill.ready && styles.toggleBtnOn]}
             accessibilityRole="tab"
             accessibilityState={{ selected: view === v }}
           >
             <Text style={[styles.toggleText, view === v && styles.toggleTextOn]}>{v === "season" ? "Season" : v === "fields" ? "Fields" : "Events"}</Text>
-          </Pressable>
+          </AnimatedPressScale>
         ))}
       </View>
       ) : null}
@@ -220,8 +227,6 @@ export default function GamesTabScreen() {
                 draws={season.draws}
                 games={season.games}
                 potdCount={season.potdCount}
-                points={season.points}
-                card={season.card}
                 form={form}
               />
             ) : upcoming.length === 0 ? (
@@ -283,13 +288,9 @@ export default function GamesTabScreen() {
                     <Text style={styles.monthLabel}>{m.label}</Text>
                     <View style={styles.logCard}>
                       {m.games.map((g, i) => (
-                        <MatchLogRow
-                          key={g.run_id}
-                          game={g}
-                          photo={photos[g.run_id]}
-                          first={i === 0}
-                          onPress={() => openRecap(g.run_id)}
-                        />
+                        <StaggerIn key={g.run_id} index={i}>
+                          <MatchLogRow game={g} photo={photos[g.run_id]} first={i === 0} onPress={() => openRecap(g.run_id)} />
+                        </StaggerIn>
                       ))}
                     </View>
                   </View>

@@ -5,7 +5,9 @@ import type { GestureResponderEvent, PressableProps, StyleProp, ViewStyle } from
 import { Pressable } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 
-const SPRING_CFG = { damping: 17, stiffness: 420, mass: 0.35 } as const;
+import { MOTION } from "@/lib/motion";
+
+const SPRING_CFG = MOTION.spring.press;
 
 export type AnimatedPressScaleProps = Omit<PressableProps, "style"> & {
   style?: StyleProp<ViewStyle>;

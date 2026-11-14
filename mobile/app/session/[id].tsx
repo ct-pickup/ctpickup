@@ -1,4 +1,9 @@
 import { goBack } from "@/lib/goBack";
+import { RatingScaleLegend } from "@/components/RatingScaleLegend";
+import { AnimatedPressScale } from "@/components/AnimatedPressScale";
+import { StaggerIn } from "@/components/motion/StaggerIn";
+import { MOTION } from "@/lib/motion";
+import Reanimated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { useAuth } from "@/context/AuthContext";
 import { useProfilePhoto } from "@/context/ProfilePhotoContext";
 import { useProfileAdmin } from "@/context/ProfileAdminContext";
@@ -54,7 +59,7 @@ import {
   levelLabel,
 } from "@/lib/starRatings";
 import { HalfStarInput } from "@/components/HalfStarInput";
-import { STAR_LEVELS, starLevelLabel } from "@shared/starLevels";
+import { starLevelLabel } from "@shared/starLevels";
 import { milesFromZip } from "@/lib/venueDistance";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 import type { DevFixtures } from "../../dev-fixtures";
@@ -1804,25 +1809,14 @@ export default function SessionDetailScreen() {
           </View>
           <Text style={s.voteSubtitle}>Give each player the rating that best reflects how they played today.</Text>
 
-          <View style={s.tierLegend}>
-            {[...STAR_LEVELS].filter((l) => l.star >= 1).reverse().map((l) => (
-              <View key={l.star} style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                <Text style={{ color: themeColor().text, fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold", width: 92 }}>
-                  {l.star.toFixed(1)} · {l.name}
-                </Text>
-                {l.description ? (
-                  <Text style={{ flex: 1, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" }}>{l.description}</Text>
-                ) : null}
-              </View>
-            ))}
-          </View>
+          <RatingScaleLegend />
 
           <View style={{ padding: 16, gap: 16 }}>
-            {attendees.filter((a) => a.user_id !== myUserId).map((a) => {
+            {attendees.filter((a) => a.user_id !== myUserId).map((a, idx) => {
               const name = playerName(a);
               const rated = scores[a.user_id] ?? null;
               return (
-                <View key={a.user_id} style={s.scoreRow}>
+                <StaggerIn key={a.user_id} index={idx} style={s.scoreRow}>
                   <View style={s.avatar}><Text style={s.avatarText}>{playerInitials(a)}</Text></View>
                   <View style={{ flex: 1 }}>
                     <Text style={s.playerName}>{name}</Text>
@@ -1833,17 +1827,27 @@ export default function SessionDetailScreen() {
                       label={`Rate ${name}`}
                       style={{ marginTop: 8 }}
                     />
-                    {rated != null ? <Text style={s.hostRatedLevel}>{starLevelLabel(rated)}</Text> : null}
+                    {rated != null ? (
+                      <Reanimated.Text key={rated} entering={FadeIn.duration(MOTION.duration.fast)} exiting={FadeOut.duration(MOTION.duration.fast)} style={s.hostRatedLevel}>
+                        {starLevelLabel(rated)}
+                      </Reanimated.Text>
+                    ) : null}
                   </View>
-                </View>
+                </StaggerIn>
               );
             })}
           </View>
-          <Pressable onPress={() => void submitScores()} disabled={scoreBusy}
-            style={[s.publishBtn, scoreBusy && { opacity: 0.5 }, { margin: 16 }]}>
+          <AnimatedPressScale
+            onPress={() => void submitScores()}
+            disabled={scoreBusy}
+            hapticOnPress
+            pressedScale={MOTION.pressScale.button}
+            accessibilityRole="button"
+            style={[s.publishBtn, scoreBusy && { opacity: 0.5 }, { margin: 16 }]}
+          >
             {scoreBusy ? <ActivityIndicator color={themeColor().onPitch} /> :
               <Text style={s.publishBtnText}>Submit & settle ratings</Text>}
-          </Pressable>
+          </AnimatedPressScale>
         </ScrollView>
       </Modal>
 

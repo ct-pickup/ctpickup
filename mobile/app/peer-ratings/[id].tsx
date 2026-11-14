@@ -12,6 +12,11 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 import { HalfStarInput } from "@/components/HalfStarInput";
+import { AnimatedPressScale } from "@/components/AnimatedPressScale";
+import { StaggerIn } from "@/components/motion/StaggerIn";
+import { MOTION } from "@/lib/motion";
+import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
+import { starLevelLabel } from "@shared/starLevels";
 import { isValidHalfStar } from "@/lib/halfStars";
 
 import { headline, themeColor, useThemedStyles } from "@/theme";
@@ -145,8 +150,8 @@ export default function PeerRatingsScreen() {
         data={players}
         keyExtractor={(p) => p.user_id}
         style={{ marginTop: 20 }}
-        renderItem={({ item }) => (
-          <View style={s.row}>
+        renderItem={({ item, index }) => (
+          <StaggerIn index={index} style={s.row}>
             <Text style={s.name}>{item.name}</Text>
             <HalfStarInput
               value={ratings[item.user_id] ?? null}
@@ -154,20 +159,28 @@ export default function PeerRatingsScreen() {
               label={`Rate ${item.name}`}
               style={s.stars}
             />
-          </View>
+            {ratings[item.user_id] != null ? (
+              <Animated.Text key={ratings[item.user_id]} entering={FadeIn.duration(MOTION.duration.fast)} exiting={FadeOut.duration(MOTION.duration.fast)} style={s.level}>
+                {starLevelLabel(ratings[item.user_id] ?? null)}
+              </Animated.Text>
+            ) : null}
+          </StaggerIn>
         )}
       />
 
       {!attended ? <Text style={s.error}>{NOT_ATTENDED}</Text> : null}
       {error ? <Text style={s.error}>{error}</Text> : null}
 
-      <Pressable
+      <AnimatedPressScale
         onPress={() => void submit()}
         disabled={ratedCount === 0 || submitting || !attended}
+        hapticOnPress
+        pressedScale={MOTION.pressScale.button}
+        accessibilityRole="button"
         style={[s.cta, (ratedCount === 0 || !attended) && s.ctaOff, { marginBottom: insets.bottom }]}
       >
         <Text style={s.ctaText}>{submitting ? "Saving…" : `Submit ${ratedCount}/${players.length}`}</Text>
-      </Pressable>
+      </AnimatedPressScale>
     </View>
   );
 }
@@ -188,6 +201,7 @@ function make_s() {
   },
   name: { color: themeColor().text, fontSize: 16, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
   stars: { marginTop: 8 },
+  level: { color: themeColor().muted, fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 4 },
   error: { color: themeColor().coralText, fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 8 },
   cta: {
     backgroundColor: themeColor().pitch,

@@ -1,5 +1,10 @@
-import { useId } from "react";
+import { useId, useState } from "react";
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import Animated, { ZoomIn } from "react-native-reanimated";
+
+import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { hapticTap } from "@/lib/haptics";
+import { MOTION } from "@/lib/motion";
 
 import { MAX_STARS, starFill, starValueFromTap } from "@/lib/halfStars";
 import { StarGlyph } from "@/components/StarRating";
@@ -17,6 +22,14 @@ type Props = {
 export function HalfStarInput({ value, onChange, px = 34, disabled, label, style }: Props) {
   const baseId = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const shown = value ?? 0;
+  const reduceMotion = useReduceMotion();
+  // Each tap remounts the filled stars so they pop in one after another; a light tap on the finger.
+  const [popKey, setPopKey] = useState(0);
+  const pick = (v: number) => {
+    void hapticTap();
+    setPopKey((k) => k + 1);
+    onChange(v);
+  };
   return (
     <View
       style={[styles.row, style]}
@@ -27,7 +40,7 @@ export function HalfStarInput({ value, onChange, px = 34, disabled, label, style
       onAccessibilityAction={(e) => {
         if (disabled) return;
         const next = e.nativeEvent.actionName === "increment" ? shown + 0.5 : shown - 0.5;
-        onChange(Math.min(MAX_STARS, Math.max(0.5, next)));
+        pick(Math.min(MAX_STARS, Math.max(0.5, next)));
       }}
     >
       {[0, 1, 2, 3, 4].map((i) => (
@@ -35,12 +48,16 @@ export function HalfStarInput({ value, onChange, px = 34, disabled, label, style
           key={i}
           disabled={disabled}
           hitSlop={{ top: 6, bottom: 6 }}
-          onPress={(e) => onChange(starValueFromTap(i, e.nativeEvent.locationX, px))}
+          onPress={(e) => pick(starValueFromTap(i, e.nativeEvent.locationX, px))}
           style={{ width: px, height: px }}
         >
-          <View pointerEvents="none">
+          <Animated.View
+            key={`${i}-${popKey}`}
+            pointerEvents="none"
+            entering={!reduceMotion && popKey > 0 && starFill(i, shown) > 0 ? ZoomIn.duration(MOTION.duration.fast).delay(i * MOTION.stagger.stepMs) : undefined}
+          >
             <StarGlyph fill={starFill(i, shown)} px={px} clipId={`half-input-${baseId}-${i}`} tone="theme" />
-          </View>
+          </Animated.View>
         </Pressable>
       ))}
     </View>

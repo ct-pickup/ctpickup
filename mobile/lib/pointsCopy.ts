@@ -12,6 +12,6 @@ export function seasonPointsCaption(season: string | null | undefined): string {
 }
 
 export const POINTS_LABEL = "PTS";
-export const POINTS_LOAD_FAILED_TEXT = "Can’t load points, tap to retry";
+export const RATING_LOAD_FAILED_TEXT = "Can’t load rating, tap to retry";
 
 export type StandingState = "loading" | "ok" | "failed";

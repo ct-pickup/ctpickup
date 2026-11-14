@@ -17,6 +17,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { PhotoUploadField } from "@/components/photo";
 import BadgeShelf from "@/components/profile/BadgeShelf";
+import { readSeenBadges, writeSeenBadges } from "@/lib/badgeMemory";
+import { newlyEarnedBadges, type CelebratedBadge } from "@/lib/motionCore";
 import PlayerCard, { type PlayerCardData } from "@/components/profile/PlayerCard";
 import ProfileCard from "@/components/profile/ProfileCard";
 import { SeasonCard } from "@/components/season/SeasonCard";
@@ -87,6 +89,8 @@ export default function ProfileScreen() {
   const [card, setCard] = useState<StarCard | null | undefined>(_cachedCard);
   const [stats, setStats] = useState<ProfileStats | null>(_cachedStats);
   const [badges, setBadges] = useState<ProfileBadge[]>(_cachedBadges ?? unearnedBadges());
+  /** Badges earned since this device last showed the shelf: they get the unlock animation once. */
+  const [justEarned, setJustEarned] = useState<CelebratedBadge[]>([]);
   const [actionPhotoUrl, setActionPhotoUrl] = useState<string | null>(null);
   const { avatarUrl, setAvatarUrl, avatarUploading, pickAndUploadAvatar } = useAvatarPhoto();
   const [editing, setEditing] = useState(false);
@@ -140,6 +144,10 @@ export default function ProfileScreen() {
       if (nextBadges) {
         _cachedBadges = nextBadges;
         setBadges(nextBadges);
+        const seen = await readSeenBadges(uid);
+        const fresh = newlyEarnedBadges(seen, nextBadges);
+        if (fresh.length) setJustEarned(fresh);
+        await writeSeenBadges(uid, nextBadges.filter((b) => b.earned).map((b) => b.id));
       }
     } catch (e) {
       console.error("[profile] loadStats exception", e);
@@ -401,7 +409,7 @@ export default function ProfileScreen() {
 
         <View style={s.sectionBleed}>
           <Text style={[s.sectionLabel, s.sectionLabelInset]}>Badges</Text>
-          <BadgeShelf badges={badges} />
+          <BadgeShelf badges={badges} justEarned={justEarned} />
         </View>
       </ScrollView>
 

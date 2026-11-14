@@ -15,6 +15,11 @@ type Props = {
    * them shows two decimals. Leave it out (share images, rows without it) and the stars are half stars as before.
    */
   exact?: number | null;
+  /**
+   * Animation only: a 0 to 5 value that fills the stars from the left in sequence (the count-up passes the number it is showing).
+   * The number text and the accessibility label still describe the final rating.
+   */
+  reveal?: number | null;
   provisional?: boolean;
   size?: StarRatingSize;
   showValue?: boolean;
@@ -101,9 +106,16 @@ export function StarGlyph({
   );
 }
 
+/** Continuous fill for an in-progress reveal: 3.35 is three full stars and 35 percent of the fourth. */
+function revealFills(v: number): number[] {
+  const x = Math.min(5, Math.max(0, v));
+  return [0, 1, 2, 3, 4].map((i) => Math.min(1, Math.max(0, x - i)));
+}
+
 export function StarRating({
   value,
   exact,
+  reveal,
   provisional = false,
   size = "md",
   showValue = true,
@@ -119,7 +131,7 @@ export function StarRating({
   if (value == null || !Number.isFinite(value)) return null;
 
   const clamped = Math.min(5, Math.max(0, value));
-  const fills = starFills(clamped, exact);
+  const fills = typeof reveal === "number" && Number.isFinite(reveal) ? revealFills(reveal) : starFills(clamped, exact);
   const numberText = starNumberText(clamped, exact);
   const px = pxOverride ?? STAR_PX[size];
   const gap = pxOverride ? Math.max(1, Math.round(pxOverride * 0.12)) : GAP_PX[size];

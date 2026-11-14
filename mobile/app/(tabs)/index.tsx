@@ -32,6 +32,9 @@ import { currentHourEt } from "@/lib/pickup/runStartAtDisplay";
 import { fetchRunTimeTbdIds } from "@/lib/pickup/runTimeTbd";
 import { isServiceRegionCode, serviceRegionName } from "@/lib/serviceRegions";
 import { averageStars, fetchPlayerCards, type PlayerCard } from "@/lib/starRatings";
+import { HomeSeasonCard } from "@/components/home/HomeSeasonCard";
+import type { CalendarGame } from "@/components/home/HomeCalendar";
+import { upcomingSuggestions } from "@/lib/homeSeasonCore";
 import { driveRadiusMiles, milesFromZip, zipState } from "@/lib/venueDistance";
 import { serviceRegionForVenueName } from "@/lib/venueServiceRegion";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
@@ -443,6 +446,21 @@ export default function HomeScreen() {
     return [...byId.values()].sort((x, y) => (y.score > 0 ? 1 : 0) - (x.score > 0 ? 1 : 0) || y.score - x.score || x.start - y.start);
   })();
 
+  // Up to three upcoming games (nearby and region runs Home already loaded) for Today when nothing is booked.
+  const suggestions: CalendarGame[] = upcomingSuggestions([...nearRuns, ...regionRuns], Date.now()).map((r) => ({
+    id: r.id,
+    title: r.title,
+    start_at: r.start_at,
+    location_text: r.location_text,
+    capacity: r.capacity,
+    spots_taken: r.spots_taken,
+    status: r.status,
+    created_by: null,
+    time_tbd: r.time_tbd === true,
+    min_star: null,
+    hosting: false,
+  }));
+
   return (
     <ScrollView
       style={styles.root}
@@ -517,7 +535,10 @@ export default function HomeScreen() {
         onOpenRun={openRun}
         onGetGame={openGamesMap}
         registerRefresh={registerCalendarRefresh}
+        suggestions={suggestions}
       />
+
+      {!fixture ? <HomeSeasonCard onPress={() => push("/(tabs)/account")} /> : null}
 
       {forYou.length > 0 ? (
         <>

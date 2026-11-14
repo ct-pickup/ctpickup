@@ -1,5 +1,10 @@
 import { StyleSheet, Text, View } from "react-native";
+import Animated, { Easing, useAnimatedStyle, useDerivedValue, withSequence, withTiming } from "react-native-reanimated";
 import Svg, { Circle } from "react-native-svg";
+
+import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { MOTION } from "@/lib/motion";
+import { RATED_GAMES_HELP } from "@/lib/ratingDisplayCore";
 
 import { themeColor, useThemedStyles } from "@/theme";
 
@@ -46,12 +51,19 @@ export function ReliabilityRing({ percent }: { percent: number }) {
   );
 }
 
-/** Thin Provisional to Settled bar with the games so far. */
-export function SettleProgress({ progress, gamesLabel }: { progress: number; gamesLabel: string }) {
+/** Thin Provisional to Settled bar with the games so far and how many more lock the rating. The fill animates in (not with Reduce Motion). */
+export function SettleProgress({ progress, gamesLabel, lockLabel, replayKey = 0 }: { progress: number; gamesLabel: string; lockLabel?: string | null; replayKey?: number }) {
   useThemedStyles(publish_styles);
+  const reduceMotion = useReduceMotion();
   const p = Math.max(0, Math.min(1, progress));
+  // Fills from empty to p when it mounts or p changes; straight to p under Reduce Motion.
+  const fill = useDerivedValue(
+    () => (reduceMotion ? p : withSequence(withTiming(0, { duration: 0 }), withTiming(p, { duration: MOTION.duration.slow, easing: Easing.out(Easing.cubic) }))),
+    [p, reduceMotion, replayKey],
+  );
+  const fillStyle = useAnimatedStyle(() => ({ width: `${Math.round(fill.value * 100)}%` }));
   return (
-    <View style={styles.barWrap} accessible accessibilityLabel={`${gamesLabel}. Provisional to settled.`}>
+    <View style={styles.barWrap} accessible accessibilityLabel={`${gamesLabel}. ${lockLabel ?? "Provisional to settled."}`}>
       <View style={styles.barLabels}>
         <Text allowFontScaling={false} style={styles.barText}>
           Provisional
@@ -61,11 +73,19 @@ export function SettleProgress({ progress, gamesLabel }: { progress: number; gam
         </Text>
       </View>
       <View style={styles.track}>
-        <View style={[styles.fill, { width: `${Math.round(p * 100)}%` }]} />
+        <Animated.View style={[styles.fill, fillStyle]} />
       </View>
-      <Text allowFontScaling={false} style={styles.games}>
-        {gamesLabel}
-      </Text>
+      <View style={styles.barLabels}>
+        <Text allowFontScaling={false} style={styles.games}>
+          {gamesLabel}
+        </Text>
+        {lockLabel ? (
+          <Text allowFontScaling={false} style={styles.lock} numberOfLines={1}>
+            {lockLabel}
+          </Text>
+        ) : null}
+      </View>
+      <Text style={styles.help}>{RATED_GAMES_HELP}</Text>
     </View>
   );
 }
@@ -82,6 +102,8 @@ function make_styles() {
     track: { height: 4, borderRadius: 2, backgroundColor: c.line, overflow: "hidden" },
     fill: { height: 4, borderRadius: 2, backgroundColor: c.pitch },
     games: { color: c.onInk, opacity: 0.8, fontSize: 12, fontFamily: "Inter_500Medium", fontWeight: "500" },
+    help: { color: c.onInk, opacity: 0.6, fontSize: 11, lineHeight: 15, fontFamily: "Inter_400Regular", marginTop: 2 },
+    lock: { color: c.pitch, fontSize: 12, fontFamily: "Inter_600SemiBold", fontWeight: "600", flexShrink: 1, textAlign: "right" },
   });
 }
 let styles = make_styles();
