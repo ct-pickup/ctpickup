@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { PAID_OR_READY_CAPTAIN_STATUSES } from "@/lib/tournament/outdoorTournamentConstants";
+import { logMatchScore, startMatch } from "@/lib/tournament/logScore";
 import { recalculateOutdoorGroupStandings } from "@/lib/tournament/recalculateOutdoorGroupStandings";
 
 export const runtime = "nodejs";
@@ -310,55 +311,35 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, message: `Generated groups for ${teamCount} teams` });
   }
 
+  if (action === "start_match") {
+    const started = await startMatch(admin, String(tournament_id), String(body.match_id ?? ""));
+    if (!started.ok) return NextResponse.json({ error: started.error }, { status: started.status });
+    return NextResponse.json({ ok: true, started_at: started.started_at });
+  }
+
   if (action === "log_score") {
-    const { match_id, score_a, score_b, goals } = body;
+    const { match_id, score_a, score_b, goals, winner_id, confirm_reset } = body;
+    if (!match_id) return NextResponse.json({ error: "match_id required" }, { status: 400 });
 
-    const matchRes = await admin.from("tournament_matches").select("*").eq("id", match_id).maybeSingle();
-    if (!matchRes.data) return NextResponse.json({ error: "Match not found" }, { status: 404 });
-    const match = matchRes.data;
-    if (String(match.tournament_id) !== String(tournament_id)) {
-      return NextResponse.json({ error: "Tournament mismatch" }, { status: 400 });
+    // One action: score, winner, completed_at, group standings, and the winner moving into the next knockout match.
+    const logged = await logMatchScore(admin, {
+      tournament_id: String(tournament_id),
+      match_id: String(match_id),
+      score_a,
+      score_b,
+      winner_id,
+      goals: Array.isArray(goals) ? goals : [],
+      confirm_reset: confirm_reset === true,
+    });
+    if (!logged.ok) {
+      return NextResponse.json({ error: logged.error, code: logged.code, affected: logged.affected }, { status: logged.status });
     }
+    const match = logged.match;
 
-    let winner_id = null;
-    if (score_a !== score_b) {
-      winner_id = score_a > score_b ? match.team_a_id : match.team_b_id;
-    }
-
-    await admin
-      .from("tournament_matches")
-      .update({
-        score_a,
-        score_b,
-        winner_id,
-        completed_at: new Date().toISOString(),
-      })
-      .eq("id", match_id);
-
-    await admin.from("tournament_match_goals").delete().eq("match_id", match_id);
-
-    if (goals && goals.length > 0) {
-      await admin.from("tournament_match_goals").insert(
-        goals.map((g: { team_id: string; scorer_name: string; minute: unknown; is_own_goal?: boolean }) => ({
-          match_id,
-          tournament_id,
-          team_id: g.team_id,
-          scorer_name: g.scorer_name,
-          minute: g.minute,
-          is_own_goal: g.is_own_goal || false,
-        })),
-      );
-    }
-
-    if (match.stage === "group") {
-      const recap = await recalculateOutdoorGroupStandings(admin, tournament_id);
-      if (!recap.ok) return NextResponse.json({ error: recap.error }, { status: 500 });
-    }
-
+    // The MVP vote push goes out once, when the match first gets a result, not on every edit.
     const teamAId = match.team_a_id as string | null;
     const teamBId = match.team_b_id as string | null;
-    const isBye = Boolean(match.is_bye);
-    if (teamAId && teamBId && !isBye) {
+    if (logged.first_completion && teamAId && teamBId && !match.is_bye) {
       const { data: capTeams } = await admin
         .from("tournament_captains")
         .select("id, user_id, team_name")
@@ -391,18 +372,24 @@ export async function POST(req: Request) {
       const notifyUserIds = [...new Set([...captainUserIds, ...rosterUserIds])];
       if (notifyUserIds.length) {
         await sendPushToUsers(admin, notifyUserIds, {
-          title: "Vote for Match MVP ⭐",
+          title: "Vote for Match MVP \u2B50",
           body: `Who stood out in ${teamAName} vs ${teamBName}? Vote now.`,
           data: {
             kind: "tournament_mvp_vote",
-            match_id,
+            match_id: String(match_id),
             tournament_id: String(tournament_id),
           },
         });
       }
     }
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({
+      ok: true,
+      winner_id: logged.winner_id,
+      won_on_penalties: logged.won_on_penalties,
+      advanced: logged.advanced,
+      warnings: logged.warnings,
+    });
   }
 
   if (action === "generate_knockout") {
