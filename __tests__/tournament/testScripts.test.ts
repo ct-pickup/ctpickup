@@ -20,42 +20,67 @@ describe("scripts/test-tournament/seed.sql", () => {
     expect(c).toMatch(/select t\.id as tournament_id/);
   });
 
-  it("takes exactly 40 placeholder ids at the top and refuses to run with them", () => {
+  it("needs only 4 user ids, as placeholders at the top, and refuses to run with them", () => {
     const rows = [...c.matchAll(/^\s+\((\d+), '(00000000-0000-0000-0000-\d{12})'\)[,;]$/gm)];
-    expect(rows).toHaveLength(40);
-    expect(rows.map((r) => Number(r[1]))).toEqual(Array.from({ length: 40 }, (_, i) => i + 1));
+    expect(rows).toHaveLength(4);
+    expect(rows.map((r) => Number(r[1]))).toEqual([1, 2, 3, 4]);
     expect(c).toMatch(/like '00000000-0000-0000-0000-0000000000%'/);
     expect(c).toMatch(/not in public\.profiles/);
-    // The query for picking real ids returns ids only.
-    expect(seed).toMatch(/select string_agg\(format\('  \(%s, %L\)', n, id\)/);
-    expect(seed).not.toMatch(/first_name|last_name|email|username/i);
+    expect(c).toMatch(/Paste 4 real profiles\.id values/);
   });
 
-  it("creates the labeled tournament with the flags off and starting tomorrow", () => {
+  it("only ever asks for ids of staff or friends who agreed, found by name in a private editor, never picked at random", () => {
+    expect(seed).toMatch(/staff or friends who agreed to be test accounts, never random players/);
+    expect(seed).not.toMatch(/order by random\(\)/i);
+    expect(seed).not.toMatch(/approved = true/i);
+    // The lookup is by name, with placeholders for the names, and it says the result stays private.
+    expect(seed).toMatch(/lower\(trim\(p\.first_name\)\) = lower\(trim\(w\.first_name\)\)/);
+    expect(seed).toMatch(/lower\(trim\(p\.last_name\)\)\s+= lower\(trim\(w\.last_name\)\)/);
+    for (const n of [1, 2, 3, 4]) expect(seed).toContain(`'FIRST NAME ${n}', 'LAST NAME ${n}'`);
+    expect(seed).toMatch(/PRIVATE SQL Editor tab/);
+    expect(seed).toMatch(/The result contains names\. Keep it in your private editor/);
+    expect(seed).toMatch(/do not save it, screenshot it, share it, or paste names into this file/);
+    expect(seed).toMatch(/format\('  \(%s, %L\)', w\.n, p\.id\) as paste_row/);
+  });
+
+  it("creates the labeled tournament INACTIVE, starting tomorrow, with the flags off and min roster 1", () => {
     expect(c).toMatch(/c_slug\s+constant text := 'test-bracket-demo'/);
     expect(c).toMatch(/c_title\s+constant text := 'TEST Bracket Demo \(delete me\)'/);
+    expect(c).toMatch(/\(c_title, c_slug, false, c_region, 4, 4, 4, v_start,/);
+    expect(c).not.toMatch(/is_active = true|v_active/);
+    expect(c).toMatch(/'TEST DATA: 4 teams, 2 groups of 2, then knockout\.', 0, 1,/);
     expect(c).toMatch(/interval '1 day 14 hours'/);
     expect(c).toMatch(/set rated = false, count_for_season = false/);
+    expect(c).toMatch(/exception when check_violation then/);
   });
 
-  it("only takes the live slot when no other tournament holds it", () => {
-    expect(c).toMatch(/v_active := not exists \(select 1 from public\.tournaments where is_active = true and service_region is not distinct from c_region\)/);
+  it("explains how to switch it on safely and where an admin finds it while it is off", () => {
+    expect(seed).toMatch(/It is created with is_active FALSE/);
+    expect(seed).toMatch(/Admin > Tournaments > the "Upcoming" tab/);
+    expect(seed).toMatch(/update public\.tournaments set is_active = true/);
+    expect(seed).toMatch(/not exists \(select 1 from public\.tournaments t2 where t2\.is_active and t2\.service_region is null\)/);
+    expect(seed).toMatch(/update public\.tournaments set is_active = false where slug = 'test-bracket-demo'/);
+  });
+
+  it("says no push is ever sent for it", () => {
+    expect(seed).toMatch(/NO NOTIFICATIONS: the server never sends a push for a tournament whose slug starts with "test-"/);
   });
 
   it("uses the status strings the app uses, and the shapes the app writes", () => {
     expect(c).toMatch(/'confirmed', true, 'Test Captain ' \|\| i/);
     expect(c).toMatch(/'Test Team ' \|\| i/);
-    expect(c).toMatch(/'accepted', now\(\), now\(\)/);
     expect(c).toMatch(/'group', v_group, v_match/);
     expect(c).toMatch(/\(group_id, tournament_id, team_id, wins, draws, losses, goals_for, goals_against, goal_difference, points\)/);
   });
 
-  it("makes 8 teams, 4 roster players each (5 with the captain), 2 groups of 4 and 12 unscored matches", () => {
-    expect(c).toMatch(/for i in 1\.\.8 loop/);
-    expect(c).toMatch(/for k in 1\.\.4 loop/);
-    expect(c).toMatch(/u\.n = 8 \+ \(i - 1\) \* 4 \+ k/);
+  it("makes 4 captain-only teams (no roster rows), 2 groups of 2 and 2 unscored matches", () => {
+    expect(c).toMatch(/for i in 1\.\.4 loop/);
+    expect(c).not.toMatch(/tournament_roster/);
+    expect(c).toMatch(/1, 1, now\(\), now\(\)/);
     expect(c).toMatch(/for g in 0\.\.1 loop/);
-    expect(c).toMatch(/for j in \(i \+ 1\)\.\.4 loop/);
+    expect(c).toMatch(/v_base := g \* 2;/);
+    expect(c).toMatch(/for i in 1\.\.2 loop/);
+    expect(c).toMatch(/v_caps\[v_base \+ 1\], v_caps\[v_base \+ 2\]/);
     expect(c).not.toMatch(/score_a|score_b|winner_id|completed_at|started_at/);
   });
 
@@ -70,6 +95,9 @@ describe("scripts/test-tournament/seed.sql", () => {
     expect(seed).not.toMatch(/@[a-z0-9-]+\.[a-z]{2,}/i);
     expect(seed).not.toMatch(/\b\d{3}[-. ]\d{3}[-. ]\d{4}\b/);
     expect(c).toMatch(/'test-captain-' \|\| i/);
+    // The only names in the file are the FIRST NAME n / LAST NAME n placeholders.
+    expect(seed.match(/first_name|last_name/g)?.length).toBeGreaterThan(0);
+    expect(seed).not.toMatch(/'(?!FIRST NAME|LAST NAME)[A-Z][a-z]+', '[A-Z][a-z]+'/);
   });
 });
 

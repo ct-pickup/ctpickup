@@ -5,7 +5,9 @@
 --
 -- Deletes, children first, every row that hangs off that one tournament: goals, MVP votes, match to game links, matches, group members,
 -- groups, join requests, preliminary rosters, roster, captains, and then the tournament. Tables the database does not have are skipped.
--- Rows are matched by the tournament's id only, so anything real players added to this tournament while it was visible goes too.
+-- The seed makes 4 captain-only teams and no roster rows, but roster rows are cleaned up too in case any were added.
+-- Rows are matched by the tournament's id only, so anything real players added to this tournament while it was active goes too.
+-- It removes data only: it does not touch any profile, and it sends no notification.
 --
 -- It will NOT delete if the tournament has payment records (a real captain paid). It stops and rolls back so you can refund first.
 --
