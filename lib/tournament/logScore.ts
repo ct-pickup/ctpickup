@@ -22,6 +22,11 @@ export type LogScoreInput = {
   goals?: GoalInput[] | null;
   /** The admin agreed to wipe later matches whose teams change because of this edit. */
   confirm_reset?: boolean;
+  /**
+   * Called with the ids of later matches this edit is about to delete or reset, BEFORE anything is removed (rated tournaments take their
+   * rating effect back out here: deleting a match would drop the link to its record).
+   */
+  beforeApply?: (matchIds: string[]) => Promise<void>;
 };
 
 export type LogScoreOutcome =
@@ -155,6 +160,11 @@ export async function logMatchScore(admin: SupabaseClient, input: LogScoreInput)
     if (matches.some((m) => isKnockoutStage(m.stage))) {
       warnings.push("Knockout matches were already generated from the earlier standings. Generate the knockout again if the qualifiers changed.");
     }
+  }
+
+  if (input.beforeApply) {
+    const ids = [...plan.deletes, ...plan.updates.filter((u) => u.reset).map((u) => u.id)];
+    if (ids.length) await input.beforeApply(ids);
   }
 
   const planErr = await applyPlan(admin, input.tournament_id, plan, nowIso);
