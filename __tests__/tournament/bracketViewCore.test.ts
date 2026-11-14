@@ -170,8 +170,9 @@ describe("the live bracket screen", () => {
   });
 
   it("has a Live indicator and pull to refresh", () => {
-    expect(screen).toMatch(/function LiveBadge/);
-    expect(screen).toMatch(/<Text style=\{styles\.liveText\}>Live<\/Text>/);
+    expect(screen).toMatch(/<LiveTag pulsing=\{anyLive\} \/>/);
+    const tag = src("mobile/components/tournament/LiveTag.tsx");
+    expect(tag).toMatch(/<Text style=\{styles\.text\}>Live<\/Text>/);
     expect(screen).toMatch(/<RefreshControl/);
   });
 
@@ -182,7 +183,7 @@ describe("the live bracket screen", () => {
     expect(screen).toMatch(/useSelectionPill<TabId>\(tab\)/);
     expect(screen).toMatch(/<SelectionPill/);
     expect(screen).toMatch(/useReduceMotion/);
-    expect(screen).toMatch(/pulsing && !reduceMotion/);
+    expect(src("mobile/components/tournament/LiveTag.tsx")).toMatch(/pulsing && !reduceMotion/);
   });
 
   it("never reads a contact or private field", () => {

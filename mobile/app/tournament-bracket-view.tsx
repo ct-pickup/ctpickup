@@ -8,6 +8,7 @@ import {
 import { siteOrigin } from "@/lib/env";
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import { SelectionPill, useSelectionPill } from "@/components/motion/SelectionPill";
+import { LiveTag } from "@/components/tournament/LiveTag";
 import { MOTION } from "@/lib/motion";
 import {
   avgText,
@@ -45,7 +46,7 @@ import {
   Text,
   View,
 } from "react-native";
-import Animated, { FadeIn, useAnimatedStyle, useDerivedValue, withRepeat, withSequence, withTiming } from "react-native-reanimated";
+import Animated, { FadeIn } from "react-native-reanimated";
 
 type MvpMatchInfo = {
   tallies: TournamentMvpTally[];
@@ -106,24 +107,6 @@ function rankMedal(rank: number): string {
   if (rank === 2) return "🥈";
   if (rank === 3) return "🥉";
   return "";
-}
-
-/** A small dot and "Live". The dot breathes while a match is being played; it holds still under Reduce Motion. */
-function LiveBadge({ pulsing, reduceMotion }: { pulsing: boolean; reduceMotion: boolean }) {
-  const dot = useDerivedValue(
-    (): number =>
-      pulsing && !reduceMotion
-        ? withRepeat(withSequence(withTiming(0.3, { duration: MOTION.duration.slow }), withTiming(1, { duration: MOTION.duration.slow })), -1)
-        : 1,
-    [pulsing, reduceMotion],
-  );
-  const dotStyle = useAnimatedStyle(() => ({ opacity: dot.value }));
-  return (
-    <View style={styles.liveBadge} accessible accessibilityLabel="Live. This screen updates on its own.">
-      <Animated.View style={[styles.liveDot, dotStyle]} />
-      <Text style={styles.liveText}>Live</Text>
-    </View>
-  );
 }
 
 /** The score in the middle of a card. A new score fades in; under Reduce Motion it just changes. */
@@ -520,7 +503,7 @@ export default function TournamentBracketViewScreen() {
             {loading ? <ActivityIndicator color={themeColor().pitchText} style={{ marginVertical: 24 }} /> : null}
             <View style={styles.titleRow}>
               <Text style={styles.title}>Standings</Text>
-              {data && !loadError ? <LiveBadge pulsing={anyLive} reduceMotion={reduceMotion} /> : null}
+              {data && !loadError ? <LiveTag pulsing={anyLive} /> : null}
             </View>
             <Text style={styles.sub}>{teams.length} confirmed teams</Text>
 
@@ -605,7 +588,7 @@ export default function TournamentBracketViewScreen() {
             {loading ? <ActivityIndicator color={themeColor().pitchText} style={{ marginVertical: 24 }} /> : null}
             <View style={styles.titleRow}>
               <Text style={styles.title}>Bracket</Text>
-              {data && !loadError ? <LiveBadge pulsing={anyLive} reduceMotion={reduceMotion} /> : null}
+              {data && !loadError ? <LiveTag pulsing={anyLive} /> : null}
             </View>
             <Text style={styles.sub}>{teams.length} confirmed teams</Text>
 
@@ -641,7 +624,7 @@ export default function TournamentBracketViewScreen() {
             {loading ? <ActivityIndicator color={themeColor().pitchText} style={{ marginVertical: 24 }} /> : null}
             <View style={styles.titleRow}>
               <Text style={styles.title}>Top scorers</Text>
-              {data && !loadError ? <LiveBadge pulsing={anyLive} reduceMotion={reduceMotion} /> : null}
+              {data && !loadError ? <LiveTag pulsing={anyLive} /> : null}
             </View>
             <Text style={styles.sub}>Goals in this tournament</Text>
 
@@ -780,19 +763,6 @@ function make_styles() {
   section: { marginBottom: 20 },
   sectionTitle: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", marginBottom: 8 },
   stageLabel: { color: themeColor().muted, fontSize: 11, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 8, marginBottom: 4 },
-  liveBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-    backgroundColor: themeColor().overlaySubtle,
-    borderWidth: 1,
-    borderColor: themeColor().line,
-  },
-  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: themeColor().coralText },
-  liveText: { color: themeColor().text, fontSize: 12, fontFamily: "Inter_700Bold", fontWeight: "700" },
   seedRow: {
     flexDirection: "row",
     alignItems: "center",

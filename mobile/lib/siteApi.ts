@@ -373,6 +373,20 @@ export async function fetchTournamentBracketPlayer(accessToken: string, tourname
   return { ok: r.ok, status: r.status, json };
 }
 
+/** Live tournaments for the Home card and the Events tab. */
+export async function fetchTournamentList(accessToken: string) {
+  const origin = siteOrigin();
+  if (!origin) {
+    return { ok: false, status: 0, json: null as unknown };
+  }
+  const r = await fetch(`${origin}/api/tournament/list`, {
+    headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
+    cache: "no-store",
+  });
+  const json = await r.json().catch(() => null);
+  return { ok: r.ok, status: r.status, json };
+}
+
 export type TournamentMvpTally = { name: string; votes: number; is_winner: boolean };
 
 /** GET tallies; pass accessToken to receive my_vote, can_vote, eligible_players for MVP picker. */
