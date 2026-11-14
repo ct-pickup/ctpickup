@@ -1,5 +1,7 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+
+import { SheetModal } from "@/components/motion/SheetModal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { headline, themeColor, useThemedStyles } from "@/theme";
@@ -25,9 +27,7 @@ export function OptionSheet<T extends string>({
   useThemedStyles(publish_styles);
   const insets = useSafeAreaInsets();
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.root}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close" />
+    <SheetModal visible={visible} onClose={onClose}>
         <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
           <View style={styles.handle} />
           <View style={styles.header}>
@@ -55,15 +55,13 @@ export function OptionSheet<T extends string>({
             );
           })}
         </View>
-      </View>
-    </Modal>
+    </SheetModal>
   );
 }
 
 function make_styles() {
   const c = themeColor();
   return StyleSheet.create({
-    root: { flex: 1, justifyContent: "flex-end", backgroundColor: c.scrim },
     sheet: { backgroundColor: c.bg, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingTop: 8 },
     handle: { alignSelf: "center", width: 36, height: 4, borderRadius: 2, backgroundColor: c.line, marginBottom: 10 },
     header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },

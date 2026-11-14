@@ -4,7 +4,7 @@ import { hapticTap } from "@/lib/haptics";
 import { Ionicons } from "@expo/vector-icons";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useNavigation, useRouter } from "expo-router";
-import { useCallback, useLayoutEffect, useMemo, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -19,6 +19,13 @@ import {
 } from "react-native";
 
 import { ChalkDivider, ChalkEmptyState } from "@/components/chalk";
+import { StarsListSkeleton } from "@/components/leaderboard/StarsListSkeleton";
+import { AnimatedPressScale } from "@/components/AnimatedPressScale";
+import { SelectionPill, useSelectionPill } from "@/components/motion/SelectionPill";
+import { StaggerIn } from "@/components/motion/StaggerIn";
+import { MOTION } from "@/lib/motion";
+import { medalFor, rankDeltas, rankSnapshot } from "@/lib/motionCore";
+import { readRankMemory, writeRankMemory } from "@/lib/rankMemory";
 import DiscoverPanel from "@/components/discover/DiscoverPanel";
 import { DiscoverRequestError, fetchWeeklyPicks, searchPlayers as searchDiscover } from "@/lib/discoverApi";
 import type { DiscoverPlayer } from "@shared/discover";
@@ -34,9 +41,10 @@ import {
   genderChipLabel,
   type GenderFilterValue,
 } from "@/lib/genderFilterCopy";
-import { gamesPlayedText, POINTS_LABEL, seasonPointsCaption } from "@/lib/pointsCopy";
+import { gamesPlayedText } from "@/lib/pointsCopy";
+import { starNumberText } from "@/lib/starFillCore";
 import { SeasonCard } from "@/components/season/SeasonCard";
-import { standingFromRows } from "@/lib/seasonCard";
+import { standingFromTiers } from "@/lib/seasonCard";
 import { fetchSeasonEntered, SEASON_PRIZE_ENABLED } from "@/lib/seasonPrize";
 import { StarRating } from "@/components/StarRating";
 import { fetchPlayerCards, topPercentLabel, type PlayerCard } from "@/lib/starRatings";
@@ -83,6 +91,8 @@ type LeaderboardsPayload = {
   /** Current-season and all-time points from the points ledger; season is e.g. "Fall 2026". */
   points: unknown[];
   points_all_time: unknown[];
+  /** Raw Stars rows (user_id, star, rating_exact, provisional, rank): the season card reads the viewer's own row. */
+  tiers: unknown[];
   season: string | null;
   /** Rows returned per category before the player's own and played-with rows. */
   top_n: number;
@@ -152,6 +162,7 @@ function parsePayload(json: unknown): LeaderboardsPayload | null {
     attacker: asRowArray(json.attacker),
     points: asRowArray(json.points),
     points_all_time: asRowArray(json.points_all_time),
+    tiers: Array.isArray(json.tiers) ? json.tiers : [],
     season: typeof json.season === "string" && json.season ? json.season : null,
     top_n: typeof json.top_n === "number" && json.top_n > 0 ? json.top_n : 25,
     totals: isRecord(json.totals)
@@ -246,6 +257,10 @@ export default function LeaderboardsScreen() {
 
   // Stars tab: points from /api/leaderboards, stars and percentile from player_cards.
   const [rankedPlayers, setRankedPlayers] = useState<RankedPlayer[]>([]);
+  /** Rank change per player since the last app session (positive = moved up). Empty on a first visit. */
+  const [deltas, setDeltas] = useState<Record<string, number>>({});
+  /** The ranks remembered from before this session; refreshes compare against the same baseline so arrows do not vanish on pull. */
+  const rankBaseline = useRef<{ viewerId: string; ranks: Record<string, number> | null } | null>(null);
   /** Size of the Stars ranking when the app had to rank it itself (older server); null when the server sent totals. */
   const [starsTotal, setStarsTotal] = useState<number | null>(null);
   const [myCard, setMyCard] = useState<PlayerCard | null>(_cachedMyCard);
@@ -335,6 +350,14 @@ export default function LeaderboardsScreen() {
           shown = [...rows].sort((a, b) => a.rank - b.rank);
           const ids = [...shown.map((p) => p.user_id), ...(myUserId ? [myUserId] : [])];
           if (supabase) cards = await fetchPlayerCards(supabase, ids);
+          // Rank-change arrows: compare with the ranks this device saw last time (no server needed), then remember today's.
+          if (myUserId) {
+            if (rankBaseline.current?.viewerId !== myUserId) rankBaseline.current = { viewerId: myUserId, ranks: await readRankMemory(myUserId) };
+            const list = shown.map((r) => ({ user_id: r.user_id, rank: r.rank }));
+            const base = rankBaseline.current.ranks;
+            setDeltas(base ? rankDeltas(base, list) : {});
+            void writeRankMemory(myUserId, { ...(base ?? {}), ...rankSnapshot(list) });
+          }
         } else {
           // Fallback ranking. Needs every row's stars: the row's own, else player_cards for the whole list.
           if (supabase && rows.some((r) => r.star == null)) {
@@ -488,6 +511,7 @@ export default function LeaderboardsScreen() {
   const onRefresh = useCallback(() => void load(true), [load]);
 
   const moreActive = MORE_TABS.some((m) => m.id === tab);
+  const tabPill = useSelectionPill<string>(moreActive ? "more" : tab);
   const moreLabel = moreActive ? (MORE_TABS.find((m) => m.id === tab)?.label ?? "More") : "More";
 
   /* --------------------------------------------------------- renderers */
@@ -501,16 +525,21 @@ export default function LeaderboardsScreen() {
         contentContainerStyle={styles.tabRow}
         keyboardShouldPersistTaps="handled"
       >
+        <SelectionPill style={tabPill.pillStyle} />
         {PRIMARY_TABS.map((t) => {
           const on = tab === t.id;
           return (
-            <Pressable
+            <AnimatedPressScale
               key={t.id}
+              onLayout={tabPill.onLayoutFor(t.id)}
+              pressedScale={MOTION.pressScale.chip}
               onPress={() => {
                 void hapticTap();
                 setTab(t.id);
               }}
-              style={[styles.tabPill, on ? styles.tabPillOn : styles.tabPillOff]}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: on }}
+              style={[styles.tabPill, on ? (tabPill.ready ? styles.tabPillOnClear : styles.tabPillOn) : styles.tabPillOff]}
             >
               {t.icon ? (
                 <FontAwesome name={t.icon} size={13} color={on ? themeColor().onPitch : themeColor().text} style={{ marginRight: 4 }} />
@@ -518,15 +547,18 @@ export default function LeaderboardsScreen() {
               <Text style={[styles.tabPillText, on && styles.tabPillTextOn]} numberOfLines={1}>
                 {t.label}
               </Text>
-            </Pressable>
+            </AnimatedPressScale>
           );
         })}
-        <Pressable
+        <AnimatedPressScale
+          onLayout={tabPill.onLayoutFor("more")}
+          pressedScale={MOTION.pressScale.chip}
           onPress={() => {
             void hapticTap();
             setMoreOpen(true);
           }}
-          style={[styles.tabPill, moreActive ? styles.tabPillOn : styles.tabPillOff]}
+          accessibilityRole="button"
+          style={[styles.tabPill, moreActive ? (tabPill.ready ? styles.tabPillOnClear : styles.tabPillOn) : styles.tabPillOff]}
         >
           <Text style={[styles.tabPillText, moreActive && styles.tabPillTextOn]} numberOfLines={1}>
             {moreLabel}
@@ -537,8 +569,9 @@ export default function LeaderboardsScreen() {
             color={moreActive ? themeColor().onPitch : themeColor().text}
             style={{ marginLeft: 4 }}
           />
-        </Pressable>
-        <Pressable
+        </AnimatedPressScale>
+        <AnimatedPressScale
+          pressedScale={MOTION.pressScale.chip}
           onPress={() => {
             void hapticTap();
             setGenderOpen(true);
@@ -551,7 +584,7 @@ export default function LeaderboardsScreen() {
             {genderChipLabel(genderFilter)}
           </Text>
           <FontAwesome name="caret-down" size={13} color={genderFilter !== "all" ? themeColor().onPitch : themeColor().text} style={{ marginLeft: 4 }} />
-        </Pressable>
+        </AnimatedPressScale>
       </ScrollView>
     );
   }
@@ -563,17 +596,22 @@ export default function LeaderboardsScreen() {
     const topPct = topPercentLabel(myCard);
 
     return (
-      <View style={styles.hero}>
+      <View style={[styles.hero, styles.heroCompact]}>
         <View style={styles.heroLeft}>
-          <Text style={styles.heroLabel}>Your rating</Text>
-          {myCard ? (
-            <StarRating value={myCard.star} exact={myCard.exact} provisional={myCard.provisional} size="lg" style={styles.heroStars} />
-          ) : (
-            <Text style={styles.heroSub}>Your rating shows here after your first rated games.</Text>
-          )}
-          {topPct ? <Text style={styles.heroTop}>{topPct}</Text> : null}
-          <Text style={styles.heroSub}>Play more verified games to move up.</Text>
-          <StarLevelsLink style={styles.heroLink} />
+          <View style={styles.heroLine}>
+            <Text style={styles.heroLabel}>Your rating</Text>
+            {myCard ? (
+              <StarRating value={myCard.star} exact={myCard.exact} provisional={myCard.provisional} size="md" showLevel={false} style={styles.heroStarsInline} />
+            ) : (
+              <Text style={styles.heroSubInline} numberOfLines={2}>
+                Shows here after your first rated games.
+              </Text>
+            )}
+          </View>
+          <View style={styles.heroMeta}>
+            {topPct ? <Text style={styles.heroTopSmall}>{topPct}</Text> : null}
+            <StarLevelsLink />
+          </View>
         </View>
       </View>
     );
@@ -601,15 +639,27 @@ export default function LeaderboardsScreen() {
     const rank = item.rank;
     const mine = myUserId != null && item.user_id === myUserId;
     const top3 = rank <= 3;
+    const medal = medalFor(rank);
+    const delta = deltas[item.user_id] ?? 0;
     const gapBefore = rank > topN && index > 0 && (rankedPlayers[index - 1]?.rank ?? 0) <= topN;
     return (
-      <Pressable
-        key={item.user_id}
+      <StaggerIn key={item.user_id} index={index}>
+      <AnimatedPressScale
         onPress={() => router.push(`/player/${item.user_id}`)}
-        style={({ pressed }) => [styles.playerRow, mine && styles.playerRowMine, gapBefore && styles.gapBefore, pressed && { opacity: 0.85 }]}
+        pressedScale={MOTION.pressScale.card}
+        accessibilityRole="button"
+        style={[styles.playerRow, mine && styles.playerRowMine, medal && styles[`row_${medal}`], gapBefore && styles.gapBefore]}
+        accessibilityLabel={`${rank}. ${item.name}${delta > 0 ? `, up ${delta}` : delta < 0 ? `, down ${-delta}` : ""}`}
       >
-        <View style={[styles.rankCell, top3 && styles.rankCircleTop3]}>
-          <Text style={[styles.rankText, top3 && styles.rankTextTop3, mine && styles.onPanelText]}>{rank}</Text>
+        <View style={styles.rankCol}>
+          <View style={[styles.rankCell, top3 && styles.rankCircleTop3, medal && styles[`medal_${medal}`]]}>
+            <Text style={[styles.rankText, top3 && styles.rankTextTop3, mine && styles.onPanelText, medal && styles[`medalText_${medal}`]]}>{rank}</Text>
+          </View>
+          {delta !== 0 ? (
+            <Text style={[styles.delta, delta > 0 ? styles.deltaUp : styles.deltaDown]} numberOfLines={1}>
+              {delta > 0 ? `▲${delta}` : `▼${-delta}`}
+            </Text>
+          ) : null}
         </View>
 
         <View style={[styles.avatarRing, { borderColor: themeColor().line }]}>
@@ -639,7 +689,7 @@ export default function LeaderboardsScreen() {
             ) : null}
           </View>
           {item.card ? (
-            <StarRating value={item.card.star} exact={item.card.exact} provisional={item.card.provisional} size="sm" style={styles.playerStars} />
+            <StarRating value={item.card.star} exact={item.card.exact} provisional={item.card.provisional} size="sm" showValue={false} style={styles.playerStars} />
           ) : null}
           <Text style={[styles.playerStats, mine && styles.onPanelText]} numberOfLines={1}>
             {gamesPlayedText(item.games)}
@@ -647,19 +697,19 @@ export default function LeaderboardsScreen() {
         </View>
 
         <View style={styles.ptsBlock}>
-          <Text style={styles.ptsValue}>{item.points.toLocaleString()}</Text>
-          <Text style={[styles.ptsLabel, mine && styles.onPanelText]}>{POINTS_LABEL}</Text>
-          <Text style={[styles.ptsSeason, mine && styles.onPanelText]} numberOfLines={1}>
-            {seasonPointsCaption(payload?.season)}
-          </Text>
+          <Text style={[styles.ptsValue, mine && styles.onPanelText]}>{item.card ? starNumberText(item.card.star, item.card.exact) : "–"}</Text>
+          <Text style={[styles.ptsLabel, mine && styles.onPanelText]}>Rating</Text>
         </View>
         <FontAwesome name="chevron-right" size={13} color={themeColor().muted} style={{ marginLeft: 4 }} />
-      </Pressable>
+      </AnimatedPressScale>
+      </StaggerIn>
     );
   }
 
   function renderStarsTab() {
+    const myRow = myUserId ? (rankedPlayers.find((p) => p.user_id === myUserId) ?? null) : null;
     return (
+      <View style={styles.listFlex}>
       <ScrollView
         style={styles.listFlex}
         contentContainerStyle={styles.tierContent}
@@ -675,7 +725,7 @@ export default function LeaderboardsScreen() {
         </View>
 
         {starsLoading && rankedPlayers.length === 0 ? (
-          <ActivityIndicator color={themeColor().pitchText} style={{ marginTop: 32 }} />
+          <StarsListSkeleton />
         ) : rankedPlayers.length === 0 ? (
           <ChalkEmptyState
             graphic="circle"
@@ -700,6 +750,31 @@ export default function LeaderboardsScreen() {
           </View>
         </View>
       </ScrollView>
+      {myRow ? (
+        <Pressable
+          onPress={() => router.push("/(tabs)/account")}
+          style={({ pressed }) => [styles.pinnedYou, pressed && { opacity: 0.9 }]}
+          accessibilityRole="button"
+          accessibilityLabel={`You are ranked ${myRow.rank}${starsTotal ?? payload?.totals.tiers ? ` of ${starsTotal ?? payload?.totals.tiers}` : ""}. Opens your profile.`}
+        >
+          <View style={[styles.rankCell, styles.pinnedRank]}>
+            <Text style={[styles.rankText, styles.onPanelText]}>{myRow.rank}</Text>
+          </View>
+          <View style={styles.youTag}>
+            <Text style={styles.youTagText}>You</Text>
+          </View>
+          {myRow.card ? <StarRating value={myRow.card.star} exact={myRow.card.exact} provisional={myRow.card.provisional} size="sm" showValue={false} /> : null}
+          <View style={{ flex: 1 }} />
+          {myRow.card ? <Text style={[styles.pinnedRating, styles.onPanelText]}>{starNumberText(myRow.card.star, myRow.card.exact)}</Text> : null}
+          {(deltas[myRow.user_id] ?? 0) !== 0 ? (
+            <Text style={[styles.delta, (deltas[myRow.user_id] ?? 0) > 0 ? styles.deltaUp : styles.deltaDown]}>
+              {(deltas[myRow.user_id] ?? 0) > 0 ? `▲${deltas[myRow.user_id]}` : `▼${-(deltas[myRow.user_id] ?? 0)}`}
+            </Text>
+          ) : null}
+          <FontAwesome name="chevron-up" size={12} color={themeColor().onPitchPanel} />
+        </Pressable>
+      ) : null}
+      </View>
     );
   }
 
@@ -713,7 +788,7 @@ export default function LeaderboardsScreen() {
       <View>
         {SEASON_PRIZE_ENABLED && payload ? (
           <View style={styles.seasonCardWrap}>
-            <SeasonCard standing={standingFromRows(payload.points, myUserId, payload.totals.points)} />
+            <SeasonCard standing={standingFromTiers(payload.tiers, myUserId, payload.totals.tiers)} />
           </View>
         ) : null}
         <View style={styles.scopeRow}>
@@ -779,12 +854,15 @@ export default function LeaderboardsScreen() {
           const gapBefore = rank > topN && index > 0 && (rowsForTab[index - 1]?.rank ?? 0) <= topN;
           const name = displayPlayerName(item);
           return (
-            <Pressable
+            <StaggerIn index={index}>
+            <AnimatedPressScale
               onPress={() => router.push(`/player/${encodeURIComponent(item.id)}`)}
-              style={({ pressed }) => [styles.playerRow, mine && styles.playerRowMine, gapBefore && styles.gapBefore, pressed && { opacity: 0.85 }]}
+              pressedScale={MOTION.pressScale.card}
+              accessibilityRole="button"
+              style={[styles.playerRow, mine && styles.playerRowMine, gapBefore && styles.gapBefore]}
             >
-              <View style={[styles.rankCell, top3 && styles.rankCircleTop3]}>
-                <Text style={[styles.rankText, top3 && styles.rankTextTop3, mine && styles.onPanelText]}>{rank}</Text>
+              <View style={[styles.rankCell, top3 && styles.rankCircleTop3, medalFor(rank) && styles[`medal_${medalFor(rank)!}`]]}>
+                <Text style={[styles.rankText, top3 && styles.rankTextTop3, mine && styles.onPanelText, medalFor(rank) && styles[`medalText_${medalFor(rank)!}`]]}>{rank}</Text>
               </View>
               <View style={[styles.avatarRing, { borderColor: themeColor().line }]}>
                 <View style={[styles.avatarImg, styles.avatarFallback]}>
@@ -817,7 +895,8 @@ export default function LeaderboardsScreen() {
                 <Text style={styles.ptsValue}>{formatStat(tab, item)}</Text>
                 <Text style={styles.ptsLabel}>{statLabel(tab)}</Text>
               </View>
-            </Pressable>
+            </AnimatedPressScale>
+            </StaggerIn>
           );
         }}
       />
@@ -940,6 +1019,8 @@ function make_styles() {
   },
   tabPillOff: { borderWidth: 1, borderColor: themeColor().line, backgroundColor: "transparent" },
   tabPillOn: { backgroundColor: themeColor().pitch, borderWidth: 0 },
+  /* once the selection pill has measured the chips it carries the colour; the chip itself goes clear */
+  tabPillOnClear: { backgroundColor: "transparent", borderWidth: 0 },
   tabPillText: { color: themeColor().text, fontWeight: "600", fontSize: 14, fontFamily: "Inter_600SemiBold" },
   tabPillTextOn: { color: themeColor().onPitch, fontWeight: "800" },
   scopeRow: { flexDirection: "row", gap: 8, marginBottom: 12 },
@@ -970,6 +1051,12 @@ function make_styles() {
   heroLabel: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800",},
   heroStars: { marginTop: 8 },
   heroTop: { color: themeColor().text, fontSize: 24, ...headline, marginTop: 8 },
+  heroCompact: { minHeight: 0, paddingVertical: 12 },
+  heroLine: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", columnGap: 10, rowGap: 6 },
+  heroStarsInline: { flexShrink: 1, flexWrap: "wrap" },
+  heroSubInline: { flex: 1, color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular" },
+  heroMeta: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 6 },
+  heroTopSmall: { color: themeColor().text, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
   heroSub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 8 },
 
   /* section header */
@@ -1029,6 +1116,36 @@ function make_styles() {
   },
   rankText: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "800" },
   rankTextTop3: { color: themeColor().onPitchPanel },
+  rankCol: { alignItems: "center", gap: 2 },
+  /* top three: a subtle medal tint on the rank circle and a hairline of the same colour on the row */
+  medal_gold: { borderColor: themeColor().medalGold, backgroundColor: themeColor().overlaySubtle },
+  medal_silver: { borderColor: themeColor().medalSilver, backgroundColor: themeColor().overlaySubtle },
+  medal_bronze: { borderColor: themeColor().medalBronze, backgroundColor: themeColor().overlaySubtle },
+  medalText_gold: { color: themeColor().medalGold },
+  medalText_silver: { color: themeColor().medalSilver },
+  medalText_bronze: { color: themeColor().medalBronze },
+  row_gold: { borderColor: themeColor().medalGold },
+  row_silver: { borderColor: themeColor().medalSilver },
+  row_bronze: { borderColor: themeColor().medalBronze },
+  delta: { fontSize: 10, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  deltaUp: { color: themeColor().success },
+  deltaDown: { color: themeColor().coralText },
+  /* floats above the tab bar with room for the centre + button (56pt, 26pt above the bar), so nothing sits under it */
+  pinnedYou: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginHorizontal: 16,
+    marginBottom: 34,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: themeColor().pitchText,
+    backgroundColor: themeColor().pitchPanel,
+  },
+  pinnedRating: { fontSize: 18, ...headline },
+  pinnedRank: { width: 30, height: 30, borderRadius: 12, borderWidth: 1.5, borderColor: themeColor().pitchText },
   onPanelText: { color: themeColor().onPitchPanel },
   gapBefore: { marginTop: 16 },
   nameLine: { flexDirection: "row", alignItems: "center", gap: 6 },

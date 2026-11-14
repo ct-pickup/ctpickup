@@ -2,16 +2,9 @@ import { siteOrigin } from "@/lib/env";
 import { seasonForStartAt } from "@/lib/pickup/points";
 import { seasonWindowFor } from "@/lib/pickup/seasonPrize";
 import type { RecordGame } from "@/lib/playerRecord";
+import { standingFromTiers, type SeasonStanding } from "@/lib/seasonCardCore";
 
-/** The viewer's place in this season's points ranking, from the /api/leaderboards own row. */
-export type SeasonStanding = {
-  /** Season points; 0 when the viewer has none yet. */
-  points: number;
-  /** True rank in the full season ranking, or null when the viewer has no season points yet (not on the board). */
-  rank: number | null;
-  /** Players on the season board. */
-  total: number | null;
-};
+export { standingFromTiers, standingRankText, standingStarsText, type SeasonStanding } from "@/lib/seasonCardCore";
 
 function easternDate(ms: number): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(ms));
@@ -30,19 +23,6 @@ export function seasonGamesFromLog(log: readonly RecordGame[] | null | undefined
   return log.filter((g) => g.outcome != null && seasonForStartAt(g.start_at) === season).length;
 }
 
-/** The viewer's own row out of a season points list (rows already carry their true rank) plus the season total. */
-export function standingFromRows(rows: readonly unknown[], userId: string | null | undefined, total: number | null | undefined): SeasonStanding {
-  const mine = userId
-    ? (rows.find((r) => r != null && typeof r === "object" && (r as { id?: unknown }).id === userId) as { value?: unknown; rank?: unknown } | undefined)
-    : undefined;
-  const value = Number(mine?.value);
-  return {
-    points: mine && Number.isFinite(value) ? value : 0,
-    rank: mine && typeof mine.rank === "number" ? mine.rank : null,
-    total: typeof total === "number" ? total : null,
-  };
-}
-
 /** One /api/leaderboards call, used only where the leaderboard payload is not already in hand (Profile). */
 export async function fetchSeasonStanding(accessToken: string | null, userId: string | null | undefined): Promise<SeasonStanding | null> {
   const origin = siteOrigin();
@@ -53,9 +33,9 @@ export async function fetchSeasonStanding(accessToken: string | null, userId: st
       cache: "no-store",
     });
     if (!r.ok) return null;
-    const j = (await r.json().catch(() => null)) as { points?: unknown; totals?: { points?: number } } | null;
-    if (!j || !Array.isArray(j.points)) return null;
-    return standingFromRows(j.points, userId, j.totals?.points);
+    const j = (await r.json().catch(() => null)) as { tiers?: unknown; totals?: { tiers?: number } } | null;
+    if (!j || !Array.isArray(j.tiers)) return null;
+    return standingFromTiers(j.tiers, userId, j.totals?.tiers);
   } catch {
     return null;
   }

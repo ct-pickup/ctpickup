@@ -20,8 +20,11 @@ export const palette = {
   success: "#16A34A",
   warning: "#F59E0B",
   error: "#DC2626",
-  /** CT+ premium card accent only. */
+  /** CT+ premium card accent, and first place on the leaderboard. */
   gold: "#C9A24B",
+  /** Second and third place on the leaderboard. */
+  silver: "#9AA8B4",
+  bronze: "#B87333",
 } as const;
 
 export const radius = {
@@ -109,6 +112,10 @@ export type ThemeColors = {
   photoScrim: string;
   /** Text and icons on photoScrim. */
   onPhoto: string;
+  /** Top three on the leaderboard: the rank circle border and number. */
+  medalGold: string;
+  medalSilver: string;
+  medalBronze: string;
 };
 
 /** Semantic colors. `bg` is the light background in light and ink in dark. */
@@ -139,6 +146,9 @@ export const lightColor: ThemeColors = {
   scrim: "rgba(11,18,24,0.45)",
   photoScrim: "rgba(11,18,24,0.72)",
   onPhoto: palette.card,
+  medalGold: palette.gold,
+  medalSilver: palette.silver,
+  medalBronze: palette.bronze,
 };
 
 export const darkColor: ThemeColors = {
@@ -168,6 +178,9 @@ export const darkColor: ThemeColors = {
   scrim: "rgba(0,0,0,0.55)",
   photoScrim: "rgba(11,18,24,0.72)",
   onPhoto: palette.card,
+  medalGold: palette.gold,
+  medalSilver: palette.silver,
+  medalBronze: palette.bronze,
 };
 
 export type Theme = {
