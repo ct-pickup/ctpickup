@@ -45,6 +45,9 @@ type Match = {
 type GroupMember = {
   id: string;
   team_id: string;
+  /** Seed and pot the team had when the groups were drawn. Present once the draw seeds migration is applied. */
+  seed?: number | null;
+  pot?: number | null;
   group_id: string;
   wins: number;
   draws: number;
@@ -289,7 +292,7 @@ export default function TournamentBracketScreen() {
   }
 
   async function onGenerate() {
-    Alert.alert("Generate bracket?", "This will shuffle teams into groups and create all group stage matches.", [
+    Alert.alert("Generate bracket?", "Teams are ranked by their players' average rating and drawn into groups so the strongest are spread out (one team from each pot per group). This creates all group stage matches.", [
       { text: "Cancel", style: "cancel" },
       { text: "Generate", onPress: () => void runGenerate("generate", "generate", "Groups generated.", false) },
     ]);
@@ -605,6 +608,7 @@ export default function TournamentBracketScreen() {
                 <View key={s.id} style={[styles.standingsRow, i < 2 && styles.standingsRowQualify]}>
                   <Text style={[styles.standingsCell, styles.standingsCellName, { flex: 3 }]} numberOfLines={1}>
                     {teamMap[s.team_id]?.team_name || s.team_id.slice(0, 6)}
+                    {s.seed != null ? `  (seed ${s.seed}${s.pot != null ? `, pot ${s.pot}` : ""})` : ""}
                   </Text>
                   <Text style={styles.standingsCell}>{s.wins}</Text>
                   <Text style={styles.standingsCell}>{s.draws}</Text>
