@@ -36,6 +36,8 @@ type Props = {
   onClaimRecorded?: () => void;
   onProceedToPay: () => void | Promise<void>;
   payBusy: boolean;
+  /** "manual": the organizer collects payment outside the app, so there is no pay button here. Default "stripe". */
+  paymentMode?: "stripe" | "manual";
 };
 
 function describeClaimError(status: number, error: string, fallback: string): { title: string; body: string } {
@@ -70,6 +72,7 @@ export function CaptainClaimModal({
   onClaimRecorded,
   onProceedToPay,
   payBusy,
+  paymentMode,
 }: Props) {
   useThemedStyles(publish_styles);
 
@@ -274,6 +277,7 @@ export function CaptainClaimModal({
 
         {step === "success" ? (
           <SuccessStep
+            manualPayment={paymentMode === "manual"}
             expectedPlayers={expectedPlayersNum}
             payBusy={payBusy}
             onProceedToPay={() => void onProceedToPay()}
@@ -558,11 +562,14 @@ function FormStep({
 }
 
 function SuccessStep({
+  manualPayment,
   expectedPlayers,
   payBusy,
   onProceedToPay,
   onClose,
 }: {
+  /** The organizer collects payment outside the app: no Stripe button, just what happens next. */
+  manualPayment: boolean;
   /** The team size just claimed: the price shown is what the checkout will charge for it. */
   expectedPlayers: number;
   payBusy: boolean;
@@ -582,6 +589,15 @@ function SuccessStep({
         </Text>
       </View>
 
+      {manualPayment ? (
+        <View style={styles.refundCard}>
+          <Text style={styles.refundTitle}>How payment works</Text>
+          <Text style={styles.refundBody}>
+            Payment for this tournament is handled outside the app. Once staff approve your claim, you will see how to pay here. You are not charged in the app.
+          </Text>
+        </View>
+      ) : (
+        <>
       <View style={styles.refundCard}>
         <Text style={styles.refundTitle}>Before you pay</Text>
         <Text style={styles.refundBody}>{REFUND_NOTICE}</Text>
@@ -599,6 +615,9 @@ function SuccessStep({
           <Text style={styles.primaryBtnText}>{payButtonText(expectedPlayers)}</Text>
         )}
       </Pressable>
+
+        </>
+      )}
 
       <Pressable onPress={onClose} style={styles.secondaryBtn} accessibilityRole="button">
         <Text style={styles.secondaryBtnText}>Close</Text>

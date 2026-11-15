@@ -738,6 +738,12 @@ export type TournamentCaptainRow = {
   players_paid?: number | null;
   payment_received_at?: string | null;
   roster_size?: number;
+  /** Paid in the app (Stripe) or marked paid by an admin (manual); null while unpaid. */
+  payment_method?: string | null;
+  /** True once the team counts as paid (in the app or marked paid). */
+  paid?: boolean;
+  /** What the team owes at the per-player price, in cents. For the organizer's reference. */
+  owed_cents?: number;
 };
 
 export type TourneySubmissionRow = {

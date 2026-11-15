@@ -16,6 +16,8 @@ type Props = {
   prominent?: boolean;
   /** Pick a day only: the label reads "Time TBD" and the time wheels are hidden. */
   timeTbd?: boolean;
+  /** What the empty box says. Screens with no availability poll (tournaments) pass their own; the default is the pickup poll wording. */
+  placeholder?: string;
 };
 
 type PartsFromValueOptions = {
@@ -329,6 +331,7 @@ export default function DateTimePicker({
   enforceFuture,
   prominent,
   timeTbd,
+  placeholder,
 }: Props) {
   useThemedStyles(publish_styles);
 
@@ -417,7 +420,7 @@ export default function DateTimePicker({
     ? withTimeTbd(formatDateTimePickerEtLabel(effectiveValue), timeTbd)
     : pollDateEt?.trim()
       ? "Tap to set time"
-      : "Select poll date first";
+      : (placeholder ?? "Select poll date first");
 
   function openPicker() {
     if (!pollDateReady) {

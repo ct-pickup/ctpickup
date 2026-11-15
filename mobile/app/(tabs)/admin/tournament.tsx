@@ -37,8 +37,9 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { headline, themeColor, useThemedStyles } from "@/theme";
-import { perPlayerText, teamPriceRangeText } from "@shared/tournamentPrice";
 import { makeLiveConfirmText, type MakeLivePreview } from "@shared/tournamentMakeLive";
+import { teamTotalText } from "@shared/tournamentPrice";
+import { markPaidConfirmText, undoPaidConfirmText, CREATE_DATE_PLACEHOLDER, PAYMENT_INSTRUCTIONS_MAX, PAYMENT_MODE_OPTIONS, PAYMENT_MODE_QUESTION, entryFeeNote, type PaymentMode } from "@shared/tournamentPayment";
 const DECISIONS = ["pending", "confirmed", "standby", "rejected"] as const;
 type Decision = (typeof DECISIONS)[number];
 
@@ -131,6 +132,8 @@ export default function AdminTournamentScreen() {
   const [createRegionOverride, setCreateRegionOverride] = useState<ServiceRegionCode | null>(null);
   const [createFormat, setCreateFormat] = useState("Group stage → knockout");
   const [createMinRoster, setCreateMinRoster] = useState("5");
+  const [createPayMode, setCreatePayMode] = useState<PaymentMode>("stripe");
+  const [createPayInstructions, setCreatePayInstructions] = useState("");
 
   const [listTab, setListTab] = useState<"all" | "upcoming" | "active" | "past">("active");
 
@@ -291,6 +294,19 @@ export default function AdminTournamentScreen() {
     Alert.alert("Approved", "Captain can complete Stripe checkout.");
   }
 
+  async function setCaptainPaid(captainId: string, paid: boolean) {
+    if (!token || !activeTournamentId) return Alert.alert("Not signed in", "Sign in again.");
+    setBusy(`pd:${captainId}`);
+    const r = await postAdminTournaments(token, {
+      action: paid ? "mark_captain_paid" : "undo_captain_paid",
+      tournament_id: activeTournamentId,
+      captain_id: captainId,
+    });
+    setBusy(null);
+    if (!r.ok) return Alert.alert(paid ? "Mark paid failed" : "Undo failed", r.error);
+    reload();
+  }
+
   async function rejectCaptainClaim(captainId: string) {
     if (!token) return Alert.alert("Not signed in", "Sign in again.");
     setBusy(`rj:${captainId}`);
@@ -409,6 +425,8 @@ export default function AdminTournamentScreen() {
         ...(venue_zip_code ? { venue_zip_code } : {}),
         format_summary: createFormat.trim() || undefined,
         min_roster_players: Number.isFinite(minR) && minR >= 1 ? Math.floor(minR) : undefined,
+        payment_mode: createPayMode,
+        ...(createPayMode === "manual" && createPayInstructions.trim() ? { payment_instructions: createPayInstructions.trim() } : {}),
       });
       if (!r.ok) return Alert.alert("Create failed", r.error);
       setCreateTitle("");
@@ -425,6 +443,8 @@ export default function AdminTournamentScreen() {
       setCreateRegionOverride(null);
       setCreateFormat("Group stage → knockout");
       setCreateMinRoster("5");
+      setCreatePayMode("stripe");
+      setCreatePayInstructions("");
       setRegion(createServiceRegion);
       setListTab("all");
       setCreateModalOpen(false);
@@ -566,10 +586,41 @@ export default function AdminTournamentScreen() {
         placeholder="Group stage → knockout"
         placeholderTextColor={themeColor().muted}
       />
+      <Text style={styles.label}>{PAYMENT_MODE_QUESTION}</Text>
+      <View style={styles.regionChipRow}>
+        {PAYMENT_MODE_OPTIONS.map(({ mode, label }) => {
+          const active = createPayMode === mode;
+          return (
+            <Pressable
+              key={mode}
+              onPress={() => setCreatePayMode(mode)}
+              style={({ pressed }) => [styles.regionChip, active && styles.regionChipActive, pressed && { opacity: 0.9 }]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+            >
+              <Text style={[styles.regionChipText, active && styles.regionChipTextActive]}>{label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      {createPayMode === "manual" ? (
+        <>
+          <Text style={styles.label}>Payment instructions (optional)</Text>
+          <TextInput
+            style={[styles.input, { minHeight: 72 }]}
+            value={createPayInstructions}
+            onChangeText={(t) => setCreatePayInstructions(t.slice(0, PAYMENT_INSTRUCTIONS_MAX))}
+            placeholder="e.g. Venmo @yourhandle, $50 per player"
+            placeholderTextColor={themeColor().muted}
+            multiline
+          />
+          <Text style={styles.fieldHint}>Only a captain whose claim you approved sees this. It is never shown on the public pages.</Text>
+        </>
+      ) : null}
       <View style={styles.twoCol}>
         <View style={{ flex: 1 }}>
           <Text style={styles.label}>Entry fee</Text>
-          <Text style={styles.fieldHint}>{perPlayerText()}, charged for the team size each captain claims. {teamPriceRangeText()}.</Text>
+          <Text style={styles.fieldHint}>{entryFeeNote(createPayMode)}</Text>
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.label}>Min roster</Text>
@@ -582,11 +633,11 @@ export default function AdminTournamentScreen() {
           />
         </View>
       </View>
-      <DateTimePicker label="Tournament start (ET)" value={createStartAt} onChange={setCreateStartAt} />
+      <DateTimePicker label="Tournament start (ET)" value={createStartAt} onChange={setCreateStartAt} placeholder={CREATE_DATE_PLACEHOLDER} />
       {createStartAt.trim() ? (
         <Text style={styles.fieldHint}>Selected: {formatDateTimePickerEtLabel(createStartAt.trim())}</Text>
       ) : null}
-      <DateTimePicker label="Registration deadline (ET)" value={createDeadline} onChange={setCreateDeadline} />
+      <DateTimePicker label="Registration deadline (ET)" value={createDeadline} onChange={setCreateDeadline} placeholder={CREATE_DATE_PLACEHOLDER} />
       {createDeadline.trim() ? (
         <Text style={styles.fieldHint}>Deadline: {formatDateTimePickerEtLabel(createDeadline.trim())}</Text>
       ) : null}
@@ -793,11 +844,48 @@ export default function AdminTournamentScreen() {
                       Paid headcount {typeof c.players_paid === "number" ? c.players_paid : "—"}
                     </Text>
                     <Text style={styles.captainMeta}>Submitted {fmtDate(c.claim_submitted_at)}</Text>
+                    {c.paid !== undefined ? (
+                      <Text style={styles.captainMeta}>
+                        {c.paid ? "Paid" : typeof c.owed_cents === "number" ? `Owes ${teamTotalText(c.expected_players)}` : "Unpaid"}
+                        {c.paid && c.payment_method === "manual" ? " (marked by admin)" : ""}
+                      </Text>
+                    ) : null}
+                    {activeTournament && activeTournament.payment_mode === "manual" && c.captain_verified && c.status !== "claim_rejected" && c.status !== "released_expired" ? (
+                      <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
+                        {!c.paid ? (
+                          <Pressable
+                            onPress={() =>
+                              Alert.alert("Mark paid?", markPaidConfirmText(c.team_name || c.captain_name || "this team"), [
+                                { text: "Back", style: "cancel" },
+                                { text: "Mark paid", onPress: () => void setCaptainPaid(c.id, true) },
+                              ])
+                            }
+                            disabled={busy !== null}
+                            style={[styles.smallChip, styles.smallChipPrimary, busy !== null && styles.disabled]}
+                          >
+                            <Text style={styles.smallChipPrimaryText}>{busy === `pd:${c.id}` ? "…" : "Mark paid"}</Text>
+                          </Pressable>
+                        ) : c.payment_method === "manual" ? (
+                          <Pressable
+                            onPress={() =>
+                              Alert.alert("Undo paid?", undoPaidConfirmText(c.team_name || c.captain_name || "this team"), [
+                                { text: "Back", style: "cancel" },
+                                { text: "Undo paid", style: "destructive", onPress: () => void setCaptainPaid(c.id, false) },
+                              ])
+                            }
+                            disabled={busy !== null}
+                            style={[styles.smallChip, styles.smallChipDanger, busy !== null && styles.disabled]}
+                          >
+                            <Text style={styles.smallChipDangerText}>{busy === `pd:${c.id}` ? "…" : "Undo paid"}</Text>
+                          </Pressable>
+                        ) : null}
+                      </View>
+                    ) : null}
                     {c.status === "claim_submitted" && !c.captain_verified ? (
                       <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
                         <Pressable
                           onPress={() =>
-                            Alert.alert("Approve captain?", "They will be able to complete Stripe checkout.", [
+                            Alert.alert("Approve captain?", activeTournament && activeTournament.payment_mode === "manual" ? "They will see your payment instructions. You mark them paid yourself." : "They will be able to complete Stripe checkout.", [
                               { text: "Back", style: "cancel" },
                               { text: "Approve", onPress: () => void approveCaptainClaim(c.id) },
                             ])

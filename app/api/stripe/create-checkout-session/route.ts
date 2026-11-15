@@ -11,6 +11,7 @@ import {
   getSupabaseAnon,
 } from "@/lib/server/runtimeClients";
 import { captainEntryCents, chargedPlayers, checkoutProductName } from "@/shared/tournamentPrice";
+import { PAYMENTS_OUTSIDE_APP_ERROR, PAYMENTS_OUTSIDE_APP_MESSAGE, loadPaymentConfig } from "@/lib/tournament/paymentConfig";
 
 export const runtime = "nodejs";
 
@@ -62,6 +63,14 @@ export async function POST(req: Request) {
       title: string | null;
       entry_fee_cents?: number;
     };
+    // A tournament whose payments are handled outside the app never starts a checkout, whatever the captain's app shows. Checked first,
+    // before the captain's row is touched. A tournament that cannot be read is refused too: never start a charge we cannot vouch for.
+    const payCfg = await loadPaymentConfig(admin, String(t.id));
+    if (!payCfg.ok) return NextResponse.json({ error: "payment_mode_unavailable" }, { status: 503 });
+    if (payCfg.mode === "manual") {
+      return NextResponse.json({ error: PAYMENTS_OUTSIDE_APP_ERROR, message: PAYMENTS_OUTSIDE_APP_MESSAGE }, { status: 409 });
+    }
+
     const captain = row as Record<string, unknown> & { id: string; status: string; captain_verified?: boolean };
 
     const cap = await expireIfOverdue(captain, admin);

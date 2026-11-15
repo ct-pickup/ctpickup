@@ -9,6 +9,7 @@ import { siteOrigin } from "@/lib/env";
 import { serviceRegionName } from "@/lib/serviceRegions";
 import {
   fetchPickupFindPlayers,
+  fetchTournamentPaymentInfo,
   fetchTournamentRosterCaptain,
   postTournamentRoster,
   type PickupFindPlayerResult,
@@ -32,6 +33,7 @@ import {
   View,
 } from "react-native";
 import { captainEntryCents, formatUsd, teamTotalText } from "@shared/tournamentPrice";
+import { MANUAL_NO_INSTRUCTIONS_TEXT, captainPaymentView } from "@shared/tournamentPayment";
 
 const PROCESSING_STATUSES = new Set([
   "payment_received",
@@ -108,6 +110,8 @@ function alertCaptainPayError(errMsg: string) {
     Alert.alert("", "Your account must be approved before you can claim a team.");
   } else if (lower.includes("claim_expired")) {
     Alert.alert("", "Your claim expired submit a new one");
+  } else if (lower.includes("payments_handled_outside_app")) {
+    Alert.alert("", "Payment for this tournament is handled outside the app. Follow the instructions from the organizer. You have not been charged.");
   } else {
     Alert.alert("", errMsg);
   }
@@ -139,6 +143,8 @@ export default function FieldTournamentDetailScreen() {
   async function handleCaptainPay() {
     const token = session?.access_token;
     if (!token) return;
+    // Payment handled outside the app: there is no checkout to start (the server refuses one too).
+    if (payload?.tournament?.payment_mode === "manual") return;
     const base = siteOrigin();
     if (!base) {
       Alert.alert("", "Set EXPO_PUBLIC_SITE_URL in mobile/.env");
@@ -191,6 +197,33 @@ export default function FieldTournamentDetailScreen() {
   }, [navigation]);
 
   const t = payload?.tournament;
+  const isManualPayment = t?.payment_mode === "manual";
+  const [manualPay, setManualPay] = useState<{ approved: boolean; paid: boolean; instructions: string | null } | null>(null);
+  const manualPayStatus = captainClaim?.status ?? "";
+  useEffect(() => {
+    const token = session?.access_token;
+    if (!isManualPayment || !token || !t?.id || !captainClaim) {
+      setManualPay(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const r = await fetchTournamentPaymentInfo(token, t.id);
+        if (cancelled) return;
+        const j = (r.json ?? {}) as { approved?: boolean; paid?: boolean; instructions?: string | null };
+        setManualPay(r.ok ? { approved: j.approved === true, paid: j.paid === true, instructions: typeof j.instructions === "string" ? j.instructions : null } : null);
+      } catch {
+        if (!cancelled) setManualPay(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isManualPayment, session?.access_token, t?.id, captainClaim, manualPayStatus]);
+  const manualView = isManualPayment && manualPay
+    ? captainPaymentView({ mode: "manual", approved: manualPay.approved, paid: manualPay.paid, instructions: manualPay.instructions })
+    : null;
 
   useEffect(() => {
     if (t?.title) {
@@ -683,7 +716,17 @@ export default function FieldTournamentDetailScreen() {
             </View>
           ) : null}
 
-          {session && paymentWindowOpen ? (
+          {session && manualView && manualView.kind === "manual_approved" ? (
+            <View style={styles.claimStatusCard}>
+              <Text style={styles.claimStatusCardText}>{manualView.title}</Text>
+              <Text style={styles.paymentDueLine}>
+                {manualView.instructions ?? MANUAL_NO_INSTRUCTIONS_TEXT}
+              </Text>
+              <Text style={styles.paymentDueLine}>Your team: {teamTotalText(captainClaim?.expected_players)}</Text>
+            </View>
+          ) : null}
+
+          {session && !isManualPayment && paymentWindowOpen ? (
             <View style={styles.claimStatusCard}>
               <Text style={styles.claimStatusCardText}>
                 {captainClaim?.status === "payment_pending"
@@ -757,6 +800,7 @@ export default function FieldTournamentDetailScreen() {
         accessToken={session?.access_token ?? null}
         hubRegionCode={region}
         tournamentStartAt={typeof (t as any)?.start_at === "string" ? (t as any).start_at : null}
+        paymentMode={isManualPayment ? "manual" : "stripe"}
         payBusy={payBusy}
         onClose={() => setClaimModalOpen(false)}
         onClaimRecorded={() => void reload()}

@@ -6,6 +6,7 @@ import { fetchTournamentPublic } from "@/lib/siteApi";
 import NetInfo from "@react-native-community/netinfo";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { parsePaymentMode } from "@shared/tournamentPayment";
 
 export type FieldTournamentReloadOpts = { background?: boolean };
 
@@ -28,6 +29,8 @@ export type FieldTournamentSummary = {
   service_region?: string | null;
   format_summary?: string | null;
   entry_fee_cents?: number;
+  /** How captains pay: in the app (stripe, the default) or collected by the organizer (manual). */
+  payment_mode?: "stripe" | "manual";
 };
 
 export type FieldTournamentPayload = {
@@ -105,6 +108,7 @@ export function parseFieldPayload(json: unknown): FieldTournamentPayload | null 
         typeof tr.entry_fee_cents === "number" && Number.isFinite(tr.entry_fee_cents)
           ? tr.entry_fee_cents
           : undefined,
+      payment_mode: parsePaymentMode((tr as { payment_mode?: unknown }).payment_mode),
     },
     claimedTeams,
     confirmedTeams,
