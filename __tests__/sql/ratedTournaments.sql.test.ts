@@ -240,14 +240,17 @@ describe.skipIf(!SQL_TESTS_ENABLED)("rated tournaments (real Postgres)", () => {
     expect(sync_json(out, 4)).toMatchObject({ counted: false, reason: "not_scored" });
   });
 
-  it("10. the existing team rule applies per match: 1 v 1 and 3 v 3 are too few, 4 v 4 is the minimum, 5 v 7 is uneven, 5 v 6 is fine", () => {
+  it("10. the team rule per match: 1 v 1 and 3 v 3 are too few, 4 v 4 is the minimum, 5 v 6 and 5 v 7 count, only a gap beyond the tournament limit is uneven", () => {
     const cases: Array<[number[], boolean, string | null]> = [
       [[1, 1], false, "too_few_players"],
       [[3, 3], false, "too_few_players"],
       [[4, 4], true, null],
       [[5, 6], true, null],
-      [[5, 7], false, "teams_uneven"],
-      [[8, 5], false, "teams_uneven"],
+      [[5, 7], true, null],
+      [[8, 5], true, null],
+      [[5, 13], true, null],
+      [[5, 14], false, "teams_uneven"],
+      [[14, 5], false, "teams_uneven"],
     ];
     for (const [sizes, counted, reason] of cases) {
       const w: W = { sizes, matches: [{ n: 1, sa: 2, sb: 0 }] };
