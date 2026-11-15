@@ -13,6 +13,10 @@
       "schedule": "20 * * * *"
     },
     {
+      "path": "/api/cron/tournament-reminders",
+      "schedule": "40 * * * *"
+    },
+    {
       "path": "/api/cron/monthly-rewards",
       "schedule": "0 5 1 * *"
     },

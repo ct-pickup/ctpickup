@@ -721,6 +721,8 @@ export type AdminOutdoorTournament = {
   early_termination?: boolean | null;
   prizes_paid_at?: string | null;
   prizes_paid_by?: string | null;
+  /** The final has a result and the tournament was switched off (derived by the server, not stored). */
+  finished?: boolean;
 };
 
 export type TournamentCaptainRow = {
@@ -813,6 +815,8 @@ export type AdminTournamentBracketResponse = {
   match_goals?: Record<string, AdminBracketMatchGoal[]>;
   /** Rated tournaments: the two switches and whether Rated is locked. Never holds a rating. */
   rating_options?: AdminBracketRatingOptions;
+  /** Whether the tournament is live, canceled or finished (the final has a result and it was switched off). */
+  tournament_status?: { is_active: boolean; canceled: boolean; finished: boolean };
   /** Per scored match: did it count for ratings, and a short reason code when not. */
   match_ratings?: Record<string, { counted: boolean; reason: string | null }>;
   error?: string;
@@ -851,10 +855,20 @@ export function postAdminTournamentBracket(
     won_on_penalties?: boolean;
     rating?: { status: string; counted: boolean; reason: string | null };
     rating_options?: AdminBracketRatingOptions;
+    already_finished?: boolean;
   }>("/api/admin/tournaments/bracket", accessToken, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
+  });
+}
+
+/** Read only: how many players "Make live" would send the push to. Sends nothing. */
+export function postAdminPreviewHubTournament(accessToken: string, tournamentId: string) {
+  return adminFetch<{ ok: boolean; recipients?: number; test_tournament?: boolean; error?: string }>("/api/admin/operator", accessToken, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "preview_hub_tournament", tournament_id: tournamentId }),
   });
 }
 

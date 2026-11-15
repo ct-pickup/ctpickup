@@ -31,6 +31,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { captainEntryCents, formatUsd, teamTotalText } from "@shared/tournamentPrice";
 
 const PROCESSING_STATUSES = new Set([
   "payment_received",
@@ -44,6 +45,8 @@ type CaptainClaimSnapshot = {
   status: string;
   payment_due_at: string | null;
   captain_verified?: boolean;
+  /** The team size on the claim: what the captain is charged for (shared/tournamentPrice.ts). */
+  expected_players?: number | null;
 };
 
 function captainCanManageRoster(status: string) {
@@ -209,7 +212,7 @@ export default function FieldTournamentDetailScreen() {
     void (async () => {
       const { data, error: qErr } = await supabase
         .from("tournament_captains")
-        .select("id, status, payment_due_at, captain_verified")
+        .select("id, status, payment_due_at, captain_verified, expected_players")
         .eq("tournament_id", tournamentId)
         .eq("user_id", userId)
         .maybeSingle();
@@ -234,6 +237,7 @@ export default function FieldTournamentDetailScreen() {
         status: String(data.status ?? ""),
         payment_due_at: due,
         captain_verified: !!(data as { captain_verified?: boolean }).captain_verified,
+        expected_players: Number((data as { expected_players?: unknown }).expected_players ?? 0) || null,
       });
     })();
     return () => {
@@ -691,6 +695,7 @@ export default function FieldTournamentDetailScreen() {
                   Payment due by {formatPaymentDueAt(captainClaim.payment_due_at)}
                 </Text>
               ) : null}
+              <Text style={styles.paymentDueLine}>Your charge: {teamTotalText(captainClaim?.expected_players)}</Text>
               <Pressable
                 style={[styles.captainPayBtnInCard, payBusy && styles.captainPayBtnDisabled]}
                 disabled={payBusy}
@@ -702,10 +707,7 @@ export default function FieldTournamentDetailScreen() {
                   <ActivityIndicator color={themeColor().onPitch} />
                 ) : (
                   <Text style={styles.captainPayBtnTextDark}>
-                    Pay captain fee $
-                    {typeof t?.entry_fee_cents === "number" && t.entry_fee_cents > 0
-                      ? Math.round(t.entry_fee_cents / 100)
-                      : 250}
+                    Pay captain fee {formatUsd(captainEntryCents(captainClaim?.expected_players))}
                   </Text>
                 )}
               </Pressable>

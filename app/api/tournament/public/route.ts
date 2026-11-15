@@ -12,6 +12,7 @@ import {
 } from "@/lib/tournament/outdoorTournamentConstants";
 import { resolveOutdoorHubRegionForUser } from "@/lib/tournament/resolveOutdoorHubRegionForUser";
 import { selectActiveOutdoorTournamentForRegion } from "@/lib/tournament/selectActiveOutdoorTournament";
+import { captainEntryCents, TOURNAMENT_MIN_CHARGED_PLAYERS, tournamentPriceInfo } from "@/shared/tournamentPrice";
 
 export const dynamic = "force-dynamic";
 
@@ -113,8 +114,6 @@ export async function GET(req: Request) {
       }))
       .sort((a, b) => a.team_name.localeCompare(b.team_name));
 
-    const entryFee = typeof t.entry_fee_cents === "number" ? t.entry_fee_cents : 25000;
-
     return NextResponse.json({
       tournament: {
         id: t.id,
@@ -131,7 +130,10 @@ export async function GET(req: Request) {
             ? String(t.service_region).trim().toUpperCase()
             : null,
         format_summary: typeof t.format_summary === "string" ? String(t.format_summary).trim() || null : null,
-        entry_fee_cents: entryFee,
+        // The real price: what the checkout charges (shared/tournamentPrice.ts), never the tournaments.entry_fee_cents column. Older app
+        // versions read entry_fee_cents, so it carries the smallest team price (5 players); newer ones read the per player price.
+        entry_fee_cents: captainEntryCents(TOURNAMENT_MIN_CHARGED_PLAYERS),
+        price: tournamentPriceInfo(),
       },
       claimedTeams,
       /** Paid captains (Stripe captured) through final confirmation — used for official / full thresholds. */

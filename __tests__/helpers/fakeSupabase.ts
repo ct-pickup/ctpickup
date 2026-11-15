@@ -13,6 +13,8 @@ export type FakeDb = {
   failTables: Record<string, string>;
   rpcs: Record<string, (args: Row) => { data: unknown; error: Err } | Promise<{ data: unknown; error: Err }>>;
   rpcCalls: { name: string; args: Row }[];
+  /** Tables whose inserted rows get an id (like the database default) when none is given: `${table}-${n}`. Off unless a test lists a table. */
+  mintIds?: string[];
 };
 
 export function makeDb(tables: Record<string, Row[]> = {}): FakeDb {
@@ -121,6 +123,7 @@ class Query implements PromiseLike<{ data: unknown; error: Err; count?: number |
     if (this.mode === "insert") {
       const list = Array.isArray(this.payload) ? this.payload : [this.payload as Row];
       const made = list.map((r) => ({ ...r }));
+      if (this.db.mintIds?.includes(this.table)) for (const r of made) if (r.id == null) r.id = `${this.table}-${rows.length + made.indexOf(r) + 1}-${Math.random().toString(36).slice(2, 6)}`;
       rows.push(...made);
       return { data: this.wantsReturn ? made : null, error: null };
     }
