@@ -13,6 +13,7 @@ import { EmptyStateMessage } from "@/components/EmptyStateMessage";
 import { WaiverAcceptanceModal } from "@/components/waiver/WaiverAcceptanceModal";
 import { IN_PERSON_TOURNAMENT_REFUND_NOTICE_UI } from "@/lib/fees/refundPolicyCopy";
 import { useSupabaseBrowser } from "@/lib/supabase/useSupabaseBrowser";
+import { payButtonText, teamPriceRangeText, teamTotalText } from "@/shared/tournamentPrice";
 
 type Prelim = {
   fullName: string;
@@ -585,6 +586,9 @@ export default function TournamentPage() {
                       placeholder="Expected players"
                       className="w-full rounded-card border border-line bg-card px-4 py-3 text-small text-ink placeholder:text-muted outline-none"
                     />
+                    <div className="text-caption text-ink">
+                      Entry fee: {expectedPlayers ? teamTotalText(expectedPlayers) : teamPriceRangeText()}
+                    </div>
                   </div>
 
                   <div className="text-caption text-ink">
@@ -671,7 +675,7 @@ export default function TournamentPage() {
                     disabled={payBusy}
                     className="rounded-button bg-canvas px-5 py-2.5 text-small font-semibold text-ink disabled:opacity-50"
                   >
-                    {payBusy ? "Starting checkout…" : `Proceed to payment ($${Math.max(5, Math.min(25, expectedPlayers)) * 50})`}
+                    {payBusy ? "Starting checkout…" : payButtonText(expectedPlayers)}
                   </button>
 
                   <button

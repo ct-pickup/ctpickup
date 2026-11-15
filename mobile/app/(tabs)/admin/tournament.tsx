@@ -3,6 +3,7 @@ import DateTimePicker, { formatDateTimePickerEtLabel, isScheduleWallMidnightEt }
 import { useAdminOutdoorTournaments } from "@/hooks/useAdminOutdoorTournaments";
 import {
   deleteAdminTournament,
+  postAdminPreviewHubTournament,
   postAdminSetHubTournament,
   postAdminTournaments,
   type AdminOutdoorTournament,
@@ -36,6 +37,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { headline, themeColor, useThemedStyles } from "@/theme";
+import { perPlayerText, teamPriceRangeText } from "@shared/tournamentPrice";
+import { makeLiveConfirmText, type MakeLivePreview } from "@shared/tournamentMakeLive";
 const DECISIONS = ["pending", "confirmed", "standby", "rejected"] as const;
 type Decision = (typeof DECISIONS)[number];
 
@@ -69,6 +72,7 @@ function fmtMeta(t: AdminOutdoorTournament): string {
   if (t.target_teams != null) bits.push(`target ${t.target_teams}`);
   if (t.official_threshold != null) bits.push(`official ≥${t.official_threshold}`);
   if (t.max_teams != null) bits.push(`max ${t.max_teams}`);
+  if (t.finished) bits.push("finished");
   return bits.length ? bits.join(" · ") : "—";
 }
 
@@ -126,7 +130,6 @@ export default function AdminTournamentScreen() {
   const [createCustomVenueZip, setCreateCustomVenueZip] = useState("");
   const [createRegionOverride, setCreateRegionOverride] = useState<ServiceRegionCode | null>(null);
   const [createFormat, setCreateFormat] = useState("Group stage → knockout");
-  const [createEntryFee, setCreateEntryFee] = useState("250");
   const [createMinRoster, setCreateMinRoster] = useState("5");
 
   const [listTab, setListTab] = useState<"all" | "upcoming" | "active" | "past">("active");
@@ -248,6 +251,20 @@ export default function AdminTournamentScreen() {
     if (!r.ok) return Alert.alert("Error", r.error);
     reload();
     Alert.alert("Recorded", "Cash payout marked as complete.");
+  }
+
+  /** Asks the server how many players the push goes to, then shows it in the confirm. The press itself is unchanged. */
+  async function confirmMakeLive(tournamentId: string, title: string) {
+    if (!token) return Alert.alert("Not signed in", "Sign in again.");
+    setBusy(`hub:${tournamentId}`);
+    const r = await postAdminPreviewHubTournament(token, tournamentId);
+    setBusy(null);
+    const preview: MakeLivePreview | null =
+      r.ok && typeof r.data.recipients === "number" ? { recipients: r.data.recipients, test_tournament: r.data.test_tournament === true } : null;
+    Alert.alert("Make live?", makeLiveConfirmText(title, preview), [
+      { text: "Cancel", style: "cancel" },
+      { text: "Make live", onPress: () => void setHub(tournamentId) },
+    ]);
   }
 
   async function setHub(tournamentId: string | null) {
@@ -375,7 +392,6 @@ export default function AdminTournamentScreen() {
     }
 
     setBusy("create");
-    const entryCents = Number(createEntryFee) * 100;
     const minR = Number(createMinRoster);
     const slug = slugFromTitle(title);
     try {
@@ -392,7 +408,6 @@ export default function AdminTournamentScreen() {
         venue: venueLabel || undefined,
         ...(venue_zip_code ? { venue_zip_code } : {}),
         format_summary: createFormat.trim() || undefined,
-        entry_fee_cents: Number.isFinite(entryCents) && entryCents > 0 ? Math.floor(entryCents) : undefined,
         min_roster_players: Number.isFinite(minR) && minR >= 1 ? Math.floor(minR) : undefined,
       });
       if (!r.ok) return Alert.alert("Create failed", r.error);
@@ -409,7 +424,6 @@ export default function AdminTournamentScreen() {
       setCreateCustomVenueZip("");
       setCreateRegionOverride(null);
       setCreateFormat("Group stage → knockout");
-      setCreateEntryFee("250");
       setCreateMinRoster("5");
       setRegion(createServiceRegion);
       setListTab("all");
@@ -554,14 +568,8 @@ export default function AdminTournamentScreen() {
       />
       <View style={styles.twoCol}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.label}>Entry fee ($)</Text>
-          <TextInput
-            style={styles.input}
-            value={createEntryFee}
-            onChangeText={setCreateEntryFee}
-            keyboardType="decimal-pad"
-            placeholderTextColor={themeColor().muted}
-          />
+          <Text style={styles.label}>Entry fee</Text>
+          <Text style={styles.fieldHint}>{perPlayerText()}, charged for the team size each captain claims. {teamPriceRangeText()}.</Text>
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.label}>Min roster</Text>
@@ -687,12 +695,7 @@ export default function AdminTournamentScreen() {
                   <View style={styles.roomActions}>
                     {!isLive ? (
                       <Pressable
-                        onPress={() =>
-                          Alert.alert("Make live?", `Set “${t.title}” as the only live tournament on the hub?`, [
-                            { text: "Cancel", style: "cancel" },
-                            { text: "Make live", onPress: () => void setHub(t.id) },
-                          ])
-                        }
+                        onPress={() => void confirmMakeLive(t.id, String(t.title ?? ""))}
                         disabled={busy !== null}
                         style={({ pressed }) => [
                           styles.smallChip,

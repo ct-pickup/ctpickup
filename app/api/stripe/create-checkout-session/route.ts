@@ -10,6 +10,7 @@ import {
   getSupabaseAdmin,
   getSupabaseAnon,
 } from "@/lib/server/runtimeClients";
+import { captainEntryCents, chargedPlayers, checkoutProductName } from "@/shared/tournamentPrice";
 
 export const runtime = "nodejs";
 
@@ -90,9 +91,10 @@ export async function POST(req: Request) {
 
     const origin = requestSiteUrlFromRequest(req);
 
-    const expectedPlayers = Number((cap as { expected_players?: unknown }).expected_players ?? 0) || 10;
-    const rosterHeadcount = Math.max(5, Math.min(25, expectedPlayers));
-    const feeCents = rosterHeadcount * 5000;
+    // The amount and the line item name come from the one shared price function, so every screen that shows this price shows this number.
+    const expectedPlayers = (cap as { expected_players?: unknown }).expected_players;
+    const rosterHeadcount = chargedPlayers(expectedPlayers);
+    const feeCents = captainEntryCents(expectedPlayers);
 
     const sessionMetadata = {
       kind: "tournament" as const,
@@ -111,7 +113,7 @@ export async function POST(req: Request) {
             currency: "usd",
             unit_amount: feeCents,
             product_data: {
-              name: `Competitive Together Tournament Entry — ${rosterHeadcount} players × $50`,
+              name: checkoutProductName(expectedPlayers),
               description: IN_PERSON_TOURNAMENT_CAPTAIN_STRIPE_DESCRIPTION,
             },
           },

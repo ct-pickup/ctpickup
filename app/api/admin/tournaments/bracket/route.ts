@@ -7,6 +7,9 @@ import { logMatchScore, startMatch } from "@/lib/tournament/logScore";
 import { recalculateOutdoorGroupStandings } from "@/lib/tournament/recalculateOutdoorGroupStandings";
 import { forgetMatchRecords, loadMatchRatings, loadRatingOptions, rateScoredMatch, setRatingOptions } from "@/lib/tournament/ratedTournament";
 import { ratingOptionsView } from "@/shared/ratedTournament";
+import { recordTournamentActivationChange } from "@/lib/admin/surfaceHealth";
+import { finishTournament, isFinished } from "@/lib/tournament/finishTournament";
+import { CONFIRM_REQUIRED_CODE, groupsNeedConfirm, groupsWipeMessage, knockoutNeedsConfirm, knockoutWipeMessage, loadWipeSummary } from "@/lib/tournament/generateGuard";
 
 export const runtime = "nodejs";
 
@@ -183,9 +186,18 @@ export async function GET(req: Request) {
   const rating_options = ratingOptionsView(ratingOpts);
   const match_ratings = ratingOpts.rated ? await loadMatchRatings(admin, tournament_id) : {};
 
+  const stateRes = await admin.from("tournaments").select("is_active,canceled_at").eq("id", tournament_id).maybeSingle();
+  const stateRow = (stateRes.error ? null : stateRes.data) as { is_active?: boolean | null; canceled_at?: string | null } | null;
+  const tournament_status = {
+    is_active: stateRow?.is_active === true,
+    canceled: !!stateRow?.canceled_at,
+    finished: isFinished(stateRow ?? {}, (matchesRes.data ?? []) as { stage?: string | null; completed_at?: string | null; is_bye?: boolean | null }[]),
+  };
+
   return NextResponse.json({
     teams,
     matches: matchesRes.data ?? [],
+    tournament_status,
     standings: standingsRes.data ?? [],
     roster_players,
     match_goals,
@@ -257,6 +269,17 @@ export async function POST(req: Request) {
     const config = getGroupConfig(teamCount);
     const groupNames = ["A", "B", "C"];
 
+    // Generating again deletes every existing match and group, scored or not. Refuse unless the admin said yes (the app asks first).
+    {
+      const wipe = await loadWipeSummary(admin, String(tournament_id));
+      if (groupsNeedConfirm(wipe) && body.confirm_wipe !== true) {
+        return NextResponse.json(
+          { error: groupsWipeMessage(wipe), code: CONFIRM_REQUIRED_CODE, needs_confirm: true, scored_matches: wipe.scored_matches, total_matches: wipe.total_matches },
+          { status: 409 },
+        );
+      }
+    }
+
     {
       // A rated tournament takes its rating effect back out before its matches are deleted.
       const { data: oldMatches } = await admin.from("tournament_matches").select("id").eq("tournament_id", tournament_id);
@@ -324,6 +347,20 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ ok: true, message: `Generated groups for ${teamCount} teams` });
+  }
+
+  if (action === "finish_tournament") {
+    // Turns the tournament off for players once the final has a result. No push, no refund, safe to press twice (see lib/tournament/finishTournament.ts).
+    const finished = await finishTournament(admin, String(tournament_id));
+    if (!finished.ok) return NextResponse.json({ error: finished.error, code: finished.code }, { status: finished.status });
+    if (!finished.already_finished) {
+      try {
+        await recordTournamentActivationChange(admin, u.data.user.id);
+      } catch (e) {
+        console.warn("[tournaments/bracket] activation change record failed", e instanceof Error ? e.message : String(e));
+      }
+    }
+    return NextResponse.json({ ok: true, already_finished: finished.already_finished });
   }
 
   if (action === "start_match") {
@@ -426,11 +463,16 @@ export async function POST(req: Request) {
   }
 
   if (action === "generate_knockout") {
+    // Generating again replaces the knockout. Refuse unless the admin said yes when any knockout match already has a result.
     {
-      const { data: oldKo } = await admin.from("tournament_matches").select("id").eq("tournament_id", tournament_id).in("stage", ["qf", "sf", "final"]);
-      await forgetMatchRecords(admin, String(tournament_id), ((oldKo ?? []) as { id: string }[]).map((m) => String(m.id)));
+      const wipe = await loadWipeSummary(admin, String(tournament_id));
+      if (knockoutNeedsConfirm(wipe) && body.confirm_wipe !== true) {
+        return NextResponse.json(
+          { error: knockoutWipeMessage(wipe), code: CONFIRM_REQUIRED_CODE, needs_confirm: true, scored_matches: wipe.scored_knockout, total_matches: wipe.knockout_matches },
+          { status: 409 },
+        );
+      }
     }
-    await admin.from("tournament_matches").delete().eq("tournament_id", tournament_id).in("stage", ["qf", "sf", "final"]);
 
     const groupsRes = await admin
       .from("tournament_groups")
@@ -501,6 +543,13 @@ export async function POST(req: Request) {
       const rNext = qualifiers[(i + 1) % n].runnerId;
       pairs.push({ team_a_id: wi, team_b_id: rNext });
     }
+
+    // Only now, with every check passed, are the old knockout matches removed (a rated tournament takes their rating effect back out first).
+    {
+      const { data: oldKo } = await admin.from("tournament_matches").select("id").eq("tournament_id", tournament_id).in("stage", ["qf", "sf", "final"]);
+      await forgetMatchRecords(admin, String(tournament_id), ((oldKo ?? []) as { id: string }[]).map((m) => String(m.id)));
+    }
+    await admin.from("tournament_matches").delete().eq("tournament_id", tournament_id).in("stage", ["qf", "sf", "final"]);
 
     let matchNumber = 1000;
     const stage = pairs.length <= 2 ? "sf" : "qf";

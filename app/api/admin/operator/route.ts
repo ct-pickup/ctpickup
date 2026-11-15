@@ -21,6 +21,7 @@ import { requireAdminBearer } from "@/lib/admin/requireAdmin";
 import { processAutoPickupRun } from "@/lib/pickup/autoRunCheckpoints";
 import { promotePickupRunToHub } from "@/lib/pickup/hubPromote";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
+import { isTestTournamentSlug } from "@/lib/tournament/testTournament";
 
 export const runtime = "nodejs";
 
@@ -71,6 +72,21 @@ export async function POST(req: Request) {
         { label: "Pickup status page", href: "/status/pickup" },
       ],
     });
+  }
+
+  if (action === "preview_hub_tournament") {
+    // Read only: how many players "Make live" would push to, for the confirm in the admin app. Sends nothing, changes nothing.
+    const tournament_id = String(body.tournament_id || "").trim();
+    if (!tournament_id) return NextResponse.json({ error: "Missing tournament_id." }, { status: 400 });
+    const tRes = await admin.from("tournaments").select("slug").eq("id", tournament_id).maybeSingle();
+    if (tRes.error) return NextResponse.json({ error: tRes.error.message }, { status: 500 });
+    if (!tRes.data) return NextResponse.json({ error: "Tournament not found." }, { status: 404 });
+    if (isTestTournamentSlug((tRes.data as { slug?: unknown }).slug)) {
+      return NextResponse.json({ ok: true, recipients: 0, test_tournament: true });
+    }
+    const idsRes = await fetchApprovedUserIds(admin);
+    if ("error" in idsRes) return NextResponse.json({ error: idsRes.error }, { status: 500 });
+    return NextResponse.json({ ok: true, recipients: idsRes.ids.length, test_tournament: false });
   }
 
   if (action === "set_hub_tournament") {

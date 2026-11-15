@@ -16,6 +16,7 @@ import {
   setActiveTournament,
   updateTourneySubmission,
 } from "./actions";
+import { perPlayerText, teamPriceRangeText } from "@/shared/tournamentPrice";
 
 export const dynamic = "force-dynamic";
 
@@ -308,6 +309,9 @@ export default async function AdminTournamentPage({
                   className="rounded-button border border-line bg-overlay-subtle px-3 py-2 text-small text-ink"
                 />
               </label>
+              <div className="text-caption text-muted sm:col-span-2">
+                Entry fee: {perPlayerText()}, charged for the team size each captain claims. {teamPriceRangeText()}. This is not set per tournament.
+              </div>
               <div className="flex items-end sm:col-span-2">
                 <button type="submit" className="rounded-button bg-pitch px-3 py-2 text-caption font-semibold text-on-pitch">
                   Create draft

@@ -50,7 +50,18 @@ export async function GET(req: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const tournaments = data ?? [];
+  // "Finished" is derived, not stored: the final has a result, the tournament is off for players and was not canceled.
+  const ids = (data ?? []).map((t) => String((t as { id: string }).id));
+  const finalRows = ids.length
+    ? await admin.from("tournament_matches").select("tournament_id,stage,completed_at,is_bye").in("tournament_id", ids).eq("stage", "final")
+    : { data: [] as { tournament_id: string; stage: string; completed_at: string | null; is_bye: boolean | null }[], error: null };
+  const withFinal = new Set(
+    ((finalRows.error ? [] : finalRows.data) ?? []).filter((m) => m.completed_at && m.is_bye !== true).map((m) => String(m.tournament_id)),
+  );
+  const tournaments = (data ?? []).map((t) => ({
+    ...(t as Record<string, unknown>),
+    finished: withFinal.has(String((t as { id: string }).id)) && (t as { is_active?: boolean | null }).is_active !== true && !(t as { canceled_at?: string | null }).canceled_at,
+  }));
 
   if (!includePanel) {
     return NextResponse.json({ ok: true, tournaments });
@@ -214,7 +225,6 @@ export async function POST(req: Request) {
       body.venue_zip_code != null ? String(body.venue_zip_code) : null,
     );
     const format_summary = body.format_summary != null ? String(body.format_summary).trim() : "";
-    const entryFeeCents = Number(body.entry_fee_cents);
     const minRoster = Number(body.min_roster_players);
 
     const insertRow: Record<string, unknown> = {
@@ -231,7 +241,6 @@ export async function POST(req: Request) {
     if (venue) insertRow.venue = venue;
     if (venue_zip_code) insertRow.venue_zip_code = venue_zip_code;
     if (format_summary) insertRow.format_summary = format_summary;
-    if (Number.isFinite(entryFeeCents) && entryFeeCents > 0) insertRow.entry_fee_cents = Math.floor(entryFeeCents);
     if (Number.isFinite(minRoster) && minRoster >= 1) insertRow.min_roster_players = Math.floor(minRoster);
 
     const { data: created, error } = await admin.from("tournaments").insert(insertRow).select("id,title,slug,is_active,service_region").single();

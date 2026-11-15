@@ -17,6 +17,7 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from "react-native";
+import { payButtonText, teamPriceRangeText, teamTotalText } from "@shared/tournamentPrice";
 
 const REFUND_NOTICE =
   "Tournament entry fees are non-refundable unless you request a refund more than 48 hours before the tournament begins. If your refund request is made within 48 hours of the tournament start time, no refund is issued. If the Organizer cancels the tournament before play begins, entry fees are refunded. Verified duplicate or erroneous charges will be corrected.";
@@ -273,6 +274,7 @@ export function CaptainClaimModal({
 
         {step === "success" ? (
           <SuccessStep
+            expectedPlayers={expectedPlayersNum}
             payBusy={payBusy}
             onProceedToPay={() => void onProceedToPay()}
             onClose={onClose}
@@ -480,6 +482,9 @@ function FormStep({
           keyboardType="number-pad"
           placeholderTextColor={themeColor().muted}
         />
+        <Text style={styles.label}>
+          Entry fee: {expectedPlayers.trim() && Number.isFinite(Number(expectedPlayers)) ? teamTotalText(Math.floor(Number(expectedPlayers))) : teamPriceRangeText()}
+        </Text>
         <View style={styles.rosterHeaderRow}>
           <Text style={styles.rosterHeading}>Early roster (optional)</Text>
           <Text style={styles.rosterCount}>{prelim.length}/12</Text>
@@ -553,10 +558,13 @@ function FormStep({
 }
 
 function SuccessStep({
+  expectedPlayers,
   payBusy,
   onProceedToPay,
   onClose,
 }: {
+  /** The team size just claimed: the price shown is what the checkout will charge for it. */
+  expectedPlayers: number;
   payBusy: boolean;
   onProceedToPay: () => void;
   onClose: () => void;
@@ -588,7 +596,7 @@ function SuccessStep({
         {payBusy ? (
           <ActivityIndicator color={themeColor().onPitch} />
         ) : (
-          <Text style={styles.primaryBtnText}>Proceed to payment ($250)</Text>
+          <Text style={styles.primaryBtnText}>{payButtonText(expectedPlayers)}</Text>
         )}
       </Pressable>
 

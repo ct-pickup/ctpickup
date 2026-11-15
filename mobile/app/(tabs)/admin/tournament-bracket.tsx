@@ -119,6 +119,7 @@ export default function TournamentBracketScreen() {
   const [teamMap, setTeamMap] = useState<Record<string, Team>>({});
   const [rosterPlayers, setRosterPlayers] = useState<AdminBracketRosterPlayer[]>([]);
   const [matchGoalsById, setMatchGoalsById] = useState<Record<string, AdminBracketMatchGoal[]>>({});
+  const [tournamentStatus, setTournamentStatus] = useState<{ is_active: boolean; canceled: boolean; finished: boolean } | null>(null);
   const [ratingOptions, setRatingOptions] = useState<AdminBracketRatingOptions | null>(null);
   const [matchRatings, setMatchRatings] = useState<Record<string, { counted: boolean; reason: string | null }>>({});
 
@@ -158,6 +159,7 @@ export default function TournamentBracketScreen() {
       setStandings((data.standings ?? []) as GroupMember[]);
       setRosterPlayers(Array.isArray(data.roster_players) ? data.roster_players : []);
       setMatchGoalsById(parseMatchGoals(data.match_goals));
+      setTournamentStatus(data.tournament_status ?? null);
       setRatingOptions(data.rating_options ?? null);
       setMatchRatings(data.match_ratings ?? {});
     } finally {
@@ -225,6 +227,31 @@ export default function TournamentBracketScreen() {
     return res.data ?? { ok: true };
   }
 
+  /** The last step. Turns the tournament off for players once the final has a result. Sends no push, refunds nothing, safe to press twice. */
+  async function onFinishTournament() {
+    Alert.alert(
+      "Finish tournament?",
+      "Players will no longer see this tournament on Home or in Events. No notification is sent and nothing is refunded. The bracket and all scores stay as they are.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Finish tournament",
+          onPress: async () => {
+            setBusy("finish");
+            const j = await postBracket("finish_tournament");
+            setBusy(null);
+            if (j.error) {
+              Alert.alert("Can\u2019t finish yet", j.error);
+              return;
+            }
+            Alert.alert("Finished", "The tournament is now off for players.");
+            void load();
+          },
+        },
+      ],
+    );
+  }
+
   /** Rated and Counts for season. Rated is refused by the server once a match has a score; the switch is also off then. */
   async function onSetRatingOption(patch: { rated?: boolean; count_for_season?: boolean }) {
     setBusy("rating");
@@ -236,43 +263,42 @@ export default function TournamentBracketScreen() {
     void load();
   }
 
+  /**
+   * Generate Groups and Generate Knockout. The server refuses to delete existing matches unless told to (code confirm_required, with the
+   * plain-language message), so a first press never deletes anything that has a result: the admin reads what will be deleted, then
+   * confirms, and only then is the request sent again with confirm_wipe.
+   */
+  async function runGenerate(action: "generate" | "generate_knockout", busyKey: string, doneText: string, confirmWipe: boolean) {
+    setBusy(busyKey);
+    const j = await postBracket(action, confirmWipe ? { confirm_wipe: true } : undefined);
+    setBusy(null);
+    const detail = j.detail as { code?: string } | undefined;
+    if (detail?.code === "confirm_required" && j.error) {
+      Alert.alert("Delete and start again?", j.error, [
+        { text: "Cancel", style: "cancel" },
+        { text: "Delete and generate", style: "destructive", onPress: () => void runGenerate(action, busyKey, doneText, true) },
+      ]);
+      return;
+    }
+    if (j.error) {
+      Alert.alert("Error", j.error);
+      return;
+    }
+    Alert.alert("Done", typeof j.message === "string" ? j.message : doneText);
+    void load();
+  }
+
   async function onGenerate() {
     Alert.alert("Generate bracket?", "This will shuffle teams into groups and create all group stage matches.", [
       { text: "Cancel", style: "cancel" },
-      {
-        text: "Generate",
-        onPress: async () => {
-          setBusy("generate");
-          const j = await postBracket("generate");
-          setBusy(null);
-          if (j.error) {
-            Alert.alert("Error", j.error);
-            return;
-          }
-          Alert.alert("Done", typeof j.message === "string" ? j.message : "Groups generated.");
-          void load();
-        },
-      },
+      { text: "Generate", onPress: () => void runGenerate("generate", "generate", "Groups generated.", false) },
     ]);
   }
 
   async function onGenerateKnockout() {
     Alert.alert("Generate knockout?", "This will advance top 2 from each group to knockout stage.", [
       { text: "Cancel", style: "cancel" },
-      {
-        text: "Generate",
-        onPress: async () => {
-          setBusy("knockout");
-          const j = await postBracket("generate_knockout");
-          setBusy(null);
-          if (j.error) {
-            Alert.alert("Error", j.error);
-            return;
-          }
-          Alert.alert("Done", typeof j.message === "string" ? j.message : "Knockout generated.");
-          void load();
-        },
-      },
+      { text: "Generate", onPress: () => void runGenerate("generate_knockout", "knockout", "Knockout generated.", false) },
     ]);
   }
 
@@ -398,6 +424,7 @@ export default function TournamentBracketScreen() {
 
   const groupNames = Array.from(new Set(matches.filter((m) => m.stage === "group").map((m) => m.group_name)));
   const knockoutMatches = matches.filter((m) => m.stage !== "group");
+  const finalDone = matches.some((m) => m.stage === "final" && !m.is_bye && !!m.completed_at);
   const groupComplete = matches.filter((m) => m.stage === "group").every((m) => m.completed_at);
 
   const renderMatchRow = (match: Match) => {
@@ -516,6 +543,20 @@ export default function TournamentBracketScreen() {
               />
             </View>
           </View>
+        ) : null}
+
+        {tournamentStatus?.finished ? (
+          <Text style={styles.finishedNote}>This tournament is finished. Players no longer see it on Home or in Events.</Text>
+        ) : finalDone && !tournamentStatus?.canceled ? (
+          <Pressable
+            onPress={onFinishTournament}
+            disabled={!!busy}
+            style={({ pressed }) => [styles.finishBtn, pressed && { opacity: 0.88 }, busy === "finish" && styles.disabled]}
+            accessibilityRole="button"
+            accessibilityLabel="Finish tournament"
+          >
+            <Text style={styles.finishBtnText}>{busy === "finish" ? "Finishing..." : "Finish tournament"}</Text>
+          </Pressable>
         ) : null}
 
         <View style={styles.btnRow}>
@@ -823,6 +864,9 @@ function make_styles() {
   btnSecondary: { backgroundColor: themeColor().pitchPanel, borderWidth: 1, borderColor: themeColor().pitchText },
   btnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 13, fontFamily: "Inter_700Bold" },
   disabled: { opacity: 0.5 },
+  finishBtn: { backgroundColor: themeColor().pitch, borderRadius: 10, padding: 14, alignItems: "center", marginBottom: 16 },
+  finishBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" },
+  finishedNote: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18, marginBottom: 16 },
   ratingCard: { backgroundColor: themeColor().card, borderRadius: 12, borderWidth: 1, borderColor: themeColor().line, padding: 14, marginBottom: 16 },
   ratingRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   ratingRowDivider: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: themeColor().line },

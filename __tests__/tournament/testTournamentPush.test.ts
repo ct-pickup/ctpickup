@@ -2,7 +2,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { makeDb, type FakeDb } from "../helpers/fakeSupabase";
+import { claimPushSlotsTwin, makeDb, type FakeDb } from "../helpers/fakeSupabase";
 
 const h = vi.hoisted(() => ({ db: null as unknown, expo: [] as unknown[][], from: [] as string[] }));
 
@@ -219,6 +219,7 @@ describe("every tournament push route sends nothing for a test tournament, and s
       const db = adminDb(slug, { tournament_captains: eightTeams(), tournament_roster: [] });
       db.tables.tournaments![0]!.start_at = new Date(Date.now() + 24 * 3_600_000).toISOString();
       db.tables.tournaments![0]!.start_reminder_sent_at = null;
+      db.rpcs.claim_push_slots = claimPushSlotsTwin(db); // the reminder is once only through the push ledger
       h.db = db;
       return remindersGet(new Request("https://site.test/api/cron/tournament-reminders", { headers: { authorization: "Bearer s3cret" } }));
     });

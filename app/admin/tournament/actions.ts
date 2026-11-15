@@ -116,7 +116,6 @@ export async function createTournament(formData: FormData) {
   const venue = String(formData.get("venue") || "").trim() || null;
   const start_at = String(formData.get("start_at") || "").trim() || null;
   const format_summary = String(formData.get("format_summary") || "").trim() || null;
-  const entry_fee_cents = Number(formData.get("entry_fee_cents"));
   const min_roster_players = Number(formData.get("min_roster_players"));
 
   const row: Record<string, unknown> = {
@@ -131,7 +130,6 @@ export async function createTournament(formData: FormData) {
   if (venue) row.venue = venue;
   if (start_at) row.start_at = start_at;
   if (format_summary) row.format_summary = format_summary;
-  if (Number.isFinite(entry_fee_cents) && entry_fee_cents > 0) row.entry_fee_cents = Math.floor(entry_fee_cents);
   if (Number.isFinite(min_roster_players) && min_roster_players >= 1) row.min_roster_players = Math.floor(min_roster_players);
 
   const svc = supabaseService();
