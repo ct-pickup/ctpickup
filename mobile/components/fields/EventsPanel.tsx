@@ -2,6 +2,7 @@ import { useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 
+import { TournamentsSection } from "@/components/tournament/TournamentsSection";
 import { useAuth } from "@/context/AuthContext";
 import {
   EVENT_FILTERS,
@@ -62,6 +63,7 @@ export function EventsPanel() {
 
   return (
     <View style={styles.root}>
+      <TournamentsSection />
       <View style={styles.head}>
         <Text style={styles.title}>This week</Text>
       </View>

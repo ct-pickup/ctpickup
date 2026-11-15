@@ -42,6 +42,7 @@ import type { DevFixtures } from "../../dev-fixtures";
 import HomeCalendar from "@/components/home/HomeCalendar";
 import { RateGameCard } from "@/components/rating/RateGameCard";
 import { usePendingRating } from "@/hooks/usePendingRating";
+import { HomeTournamentCard } from "@/components/tournament/HomeTournamentCard";
 import { tabBarContentPadding } from "@/lib/tabBar";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- must stay a __DEV__ require so release bundles drop dev-fixtures
@@ -540,6 +541,7 @@ export default function HomeScreen() {
         onOpenRun={openRun}
         onGetGame={openGamesMap}
         registerRefresh={registerCalendarRefresh}
+        belowStrip={<HomeTournamentCard />}
         suggestions={suggestions}
       />
 

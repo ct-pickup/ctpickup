@@ -1,7 +1,7 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Dimensions, FlatList, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -202,6 +202,7 @@ export default function HomeCalendar({
   onOpenRun,
   onGetGame,
   registerRefresh,
+  belowStrip,
   suggestions = [],
 }: {
   supabase: SupabaseClient | null;
@@ -210,6 +211,8 @@ export default function HomeCalendar({
   onGetGame: () => void;
   /** Lets Home's pull-to-refresh reload the calendar too. */
   registerRefresh?: (refresh: () => void) => void;
+  /** Rendered right under the date strip, above the selected day. */
+  belowStrip?: ReactNode;
   /** Upcoming games Home already loaded, shown under Today when nothing is booked (at most three). */
   suggestions?: CalendarGame[];
 }) {
@@ -345,6 +348,8 @@ export default function HomeCalendar({
           )}
         />
       </View>
+
+      {belowStrip}
 
       <View style={styles.dayHeader}>
         <Text style={styles.dayTitle}>{isToday ? "Today" : dayLabel(selected)}</Text>

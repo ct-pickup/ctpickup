@@ -4,6 +4,7 @@ import { PRODUCTION_PUSH_INSTALLATION_CONTEXTS } from "@/lib/push/registerUserPu
 import { randomUUID } from "node:crypto";
 import { recordEvents, type NewEvent } from "@/lib/analytics/events";
 import { applyPushPolicy, pushCategoryFor, type PushCategory } from "@/lib/push/pushPolicy";
+import { pushIsForTestTournament } from "@/lib/tournament/testTournament";
 
 export type ExpoPushPayload = {
   title: string;
@@ -35,6 +36,8 @@ export type SendPushResult = {
   batches: PushBatchResult[];
   /** Token lookup failed before calling Expo (caller may want to HTTP 500). */
   lookupError?: string;
+  /** The push belongs to a test tournament (slug starts with "test-"), so nothing was looked up or sent. */
+  skipped?: "test_tournament";
 };
 
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
@@ -294,6 +297,11 @@ export async function sendPushToUsers(
     logExpoPush("warn", "sendPushToUsers called with no user ids", {});
     return { tokens: 0, batches: [] };
   }
+  // A test tournament never notifies anyone. Checked before any player or device is looked up.
+  if (await pushIsForTestTournament(admin, payload.data)) {
+    logExpoPush("info", "push skipped: test tournament", { kind: payload.data?.kind, recipients: requested.length });
+    return { tokens: 0, batches: [], skipped: "test_tournament" };
+  }
   const policy = await allowedByPolicy(admin, requested, payload, opts);
   const unique = policy.allowed;
   if (!unique.length) return { tokens: 0, batches: [], suppressed: policy.suppressed };
@@ -354,6 +362,10 @@ export async function sendMarketingPushToUsers(
   payload: ExpoPushPayload,
   opts?: PushSendOpts,
 ): Promise<SendPushResult> {
+  if (await pushIsForTestTournament(admin, payload.data)) {
+    logExpoPush("info", "push skipped: test tournament", { kind: payload.data?.kind, recipients: userIds.length });
+    return { tokens: 0, batches: [], skipped: "test_tournament" };
+  }
   const filtered = await filterMarketingOptInUserIds(admin, userIds);
   if (filtered.lookupError) {
     return { tokens: 0, batches: [], lookupError: filtered.lookupError };
@@ -369,6 +381,10 @@ export async function sendPushToAll(
   payload: ExpoPushPayload,
   opts?: PushSendOpts,
 ): Promise<SendPushResult> {
+  if (await pushIsForTestTournament(admin, payload.data)) {
+    logExpoPush("info", "push skipped: test tournament", { kind: payload.data?.kind });
+    return { tokens: 0, batches: [], skipped: "test_tournament" };
+  }
   const res = await productionPushDeviceQuery(admin).limit(MAX_TOKEN_QUERY);
   if (res.error) {
     logExpoPush("error", "push token lookup failed (sendPushToAll)", { lookupError: res.error.message });
@@ -393,6 +409,10 @@ export async function sendMarketingPushToAll(
   payload: ExpoPushPayload,
   opts?: { excludeUserIds?: ReadonlySet<string> } & PushSendOpts,
 ): Promise<SendPushResult> {
+  if (await pushIsForTestTournament(admin, payload.data)) {
+    logExpoPush("info", "push skipped: test tournament", { kind: payload.data?.kind });
+    return { tokens: 0, batches: [], skipped: "test_tournament" };
+  }
   const res = await productionPushDeviceQuery(admin, { marketingOnly: true }).limit(MAX_TOKEN_QUERY);
   if (res.error) {
     logExpoPush("error", "push token lookup failed (sendMarketingPushToAll)", {

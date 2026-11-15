@@ -6,49 +6,47 @@ import {
   type TournamentMvpTally,
 } from "@/lib/siteApi";
 import { siteOrigin } from "@/lib/env";
-import { useLocalSearchParams, useNavigation } from "expo-router";
+import { useReduceMotion } from "@/hooks/useReduceMotion";
+import { SelectionPill, useSelectionPill } from "@/components/motion/SelectionPill";
+import { LiveTag } from "@/components/tournament/LiveTag";
+import { MOTION } from "@/lib/motion";
+import {
+  avgText,
+  hasLiveMatch,
+  knockoutRounds,
+  parseBracketPayload,
+  penaltyText,
+  scheduledText,
+  scoreText,
+  seedAndAvgText,
+  SEED_HELP,
+  STATUS_LABEL,
+  teamName,
+  winnerSide,
+  type BracketMatch,
+  type BracketPayload,
+  type BracketSlot,
+  type BracketTeam,
+  type TopScorer,
+} from "@/lib/tournamentBracketCore";
+import { useFocusEffect, useLocalSearchParams, useNavigation } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { headline, themeColor, useThemedStyles } from "@/theme";
 import {
   ActivityIndicator,
+  AppState,
   KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-
-type Team = { id: string; team_name: string; captain_name: string };
-type Match = {
-  id: string;
-  stage: string;
-  group_name: string | null;
-  match_number: number;
-  team_a_id: string;
-  team_b_id: string | null;
-  score_a: number | null;
-  score_b: number | null;
-  winner_id: string | null;
-  is_bye: boolean;
-  completed_at: string | null;
-};
-type GroupMember = {
-  id: string;
-  team_id: string;
-  group_id: string;
-  wins: number;
-  draws: number;
-  losses: number;
-  goals_for: number;
-  goals_against: number;
-  goal_difference: number;
-  points: number;
-};
-type TopScorer = { scorer_name: string; goals: number; rank: number };
+import Animated, { FadeIn } from "react-native-reanimated";
 
 type MvpMatchInfo = {
   tallies: TournamentMvpTally[];
@@ -59,7 +57,12 @@ type MvpMatchInfo = {
 
 type TabId = "standings" | "bracket" | "scorers";
 
-function matchIsMvpVotable(m: Match): boolean {
+/** How often the screen asks for fresh results while it is on screen. Realtime updates arrive sooner when they work. */
+const POLL_MS = 10_000;
+
+const EMPTY: BracketPayload = { teams: [], matches: [], standings: [], upcoming: [], top_scorers: [] };
+
+function matchIsMvpVotable(m: BracketMatch): boolean {
   if (!m.team_b_id || m.is_bye) return false;
   return m.score_a !== null && m.score_b !== null;
 }
@@ -99,39 +102,6 @@ function topMvpDisplay(tallies: TournamentMvpTally[]): { name: string; votes: nu
   return { name: winner.name, votes: winner.votes };
 }
 
-function parseTopScorers(raw: unknown): TopScorer[] {
-  if (!Array.isArray(raw)) return [];
-  const out: TopScorer[] = [];
-  for (const x of raw) {
-    if (!x || typeof x !== "object") continue;
-    const r = x as Record<string, unknown>;
-    const scorer_name = typeof r.scorer_name === "string" ? r.scorer_name.trim() : "";
-    const goals = Number(r.goals);
-    const rank = Number(r.rank);
-    if (!scorer_name || !Number.isFinite(goals) || goals < 0) continue;
-    out.push({
-      scorer_name,
-      goals: Math.trunc(goals),
-      rank: Number.isFinite(rank) && rank > 0 ? Math.trunc(rank) : out.length + 1,
-    });
-  }
-  return out;
-}
-
-function parseBracket(
-  json: unknown,
-): { teams: Team[]; matches: Match[]; standings: GroupMember[]; top_scorers: TopScorer[] } | null {
-  if (!json || typeof json !== "object") return null;
-  const o = json as Record<string, unknown>;
-  if (!Array.isArray(o.teams) || !Array.isArray(o.matches) || !Array.isArray(o.standings)) return null;
-  return {
-    teams: o.teams as Team[],
-    matches: o.matches as Match[],
-    standings: o.standings as GroupMember[],
-    top_scorers: parseTopScorers(o.top_scorers),
-  };
-}
-
 function rankMedal(rank: number): string {
   if (rank === 1) return "🥇";
   if (rank === 2) return "🥈";
@@ -139,29 +109,63 @@ function rankMedal(rank: number): string {
   return "";
 }
 
+/** The score in the middle of a card. A new score fades in; under Reduce Motion it just changes. */
+function ScoreText({ label, reduceMotion }: { label: string; reduceMotion: boolean }) {
+  if (reduceMotion) return <Text style={styles.scoreText}>{label}</Text>;
+  return (
+    <Animated.Text key={label} entering={FadeIn.duration(MOTION.duration.base)} style={styles.scoreText}>
+      {label}
+    </Animated.Text>
+  );
+}
+
 export default function TournamentBracketViewScreen() {
   useThemedStyles(publish_styles);
 
   const navigation = useNavigation();
+  const reduceMotion = useReduceMotion();
   const params = useLocalSearchParams<{ tournament_id?: string | string[] }>();
   const raw = params.tournament_id;
   const tournamentId = typeof raw === "string" ? raw : Array.isArray(raw) ? raw[0] : "";
   const { session, supabase } = useAuth();
   const token = session?.access_token;
 
-  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<BracketPayload | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [matches, setMatches] = useState<Match[]>([]);
-  const [standings, setStandings] = useState<GroupMember[]>([]);
-  const [topScorers, setTopScorers] = useState<TopScorer[]>([]);
-  const [teamMap, setTeamMap] = useState<Record<string, Team>>({});
+  const [refreshing, setRefreshing] = useState(false);
   const [tab, setTab] = useState<TabId>("standings");
   const [mvpByMatchId, setMvpByMatchId] = useState<Record<string, MvpMatchInfo>>({});
   const [mvpModalMatchId, setMvpModalMatchId] = useState<string | null>(null);
   const [mvpSelectedName, setMvpSelectedName] = useState<string | null>(null);
   const [mvpSubmitBusy, setMvpSubmitBusy] = useState(false);
-  const matchesRef = useRef<Match[]>([]);
+  const matchesRef = useRef<BracketMatch[]>([]);
+  const inflight = useRef<Promise<void> | null>(null);
+
+  const view = data ?? EMPTY;
+  const { teams, matches, standings, upcoming } = view;
+  const topScorers: TopScorer[] = view.top_scorers;
+  const loading = data === null && !loadError;
+  const teamMap = useMemo(() => {
+    const map: Record<string, BracketTeam> = {};
+    for (const t of teams) map[t.id] = t;
+    return map;
+  }, [teams]);
+  const tabPill = useSelectionPill<TabId>(tab);
+
+  // Refresh only while this screen is the one being looked at: focused, and the app in the foreground.
+  const [focused, setFocused] = useState(false);
+  const [appActive, setAppActive] = useState(AppState.currentState === "active");
+  useFocusEffect(
+    useCallback(() => {
+      setFocused(true);
+      return () => setFocused(false);
+    }, []),
+  );
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (s) => setAppActive(s === "active"));
+    return () => sub.remove();
+  }, []);
+  const active = focused && appActive;
 
   useEffect(() => {
     navigation.setOptions({
@@ -175,108 +179,69 @@ export default function TournamentBracketViewScreen() {
     matchesRef.current = matches;
   }, [matches]);
 
-  const load = useCallback(async () => {
-    if (!token || !tournamentId) return;
+  /** One request at a time: a poll that lands while another is running joins it instead of stacking up. */
+  const load = useCallback((): Promise<void> => {
+    if (inflight.current) return inflight.current;
+    if (!token || !tournamentId) return Promise.resolve();
     if (!siteOrigin()) {
       setLoadError("Set EXPO_PUBLIC_SITE_URL in mobile/.env");
-      return;
+      return Promise.resolve();
     }
-    setLoading(true);
-    setLoadError(null);
-    try {
+    const p = (async () => {
       const r = await fetchTournamentBracketPlayer(token, tournamentId);
       if (!r.ok) {
         const j = r.json && typeof r.json === "object" ? (r.json as Record<string, unknown>) : null;
         const msg = typeof j?.error === "string" ? j.error : null;
-        if (r.status === 403) {
-          setLoadError(msg || "You need an approved account to view this bracket.");
-        } else if (r.status === 401) {
-          setLoadError(msg || "Sign in again to view the bracket.");
-        } else {
-          setLoadError(msg || "Could not load bracket.");
-        }
-        setTeams([]);
-        setMatches([]);
-        setStandings([]);
-        setTopScorers([]);
-        setTeamMap({});
+        if (r.status === 403) setLoadError(msg || "You need an approved account to view this bracket.");
+        else if (r.status === 401) setLoadError(msg || "Sign in again to view the bracket.");
+        else setLoadError(msg || "Could not load bracket.");
+        // Keep showing the last good bracket if there is one; only a first load leaves the screen empty.
         return;
       }
-      const parsed = parseBracket(r.json);
+      const parsed = parseBracketPayload(r.json);
       if (!parsed) {
         setLoadError("Invalid response from server.");
-        setTeams([]);
-        setMatches([]);
-        setStandings([]);
-        setTopScorers([]);
-        setTeamMap({});
         return;
       }
-      setTeams(parsed.teams);
-      const map: Record<string, Team> = {};
-      for (const t of parsed.teams) map[t.id] = t;
-      setTeamMap(map);
-      setMatches(parsed.matches);
-      setStandings(parsed.standings);
-      setTopScorers(parsed.top_scorers);
-    } finally {
-      setLoading(false);
-    }
+      setLoadError(null);
+      setData(parsed);
+    })().finally(() => {
+      inflight.current = null;
+    });
+    inflight.current = p;
+    return p;
   }, [token, tournamentId]);
 
   useEffect(() => {
+    if (!active || !token || !tournamentId) return;
+    // Fresh results the moment the screen comes into view, then every POLL_MS.
     void load();
-  }, [load]);
+    const timer = setInterval(() => void load(), POLL_MS);
 
-  useEffect(() => {
-    if (!supabase || !tournamentId) return;
-    const topic = `tournament-bracket:${tournamentId}`;
+    // The app already listens to these tables here; keep that, so a score the admin saves shows up without waiting for the poll.
     const channel = supabase
-      .channel(topic)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "tournament_matches",
-          filter: `tournament_id=eq.${tournamentId}`,
-        },
-        () => {
-          void load();
-        },
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "tournament_group_members",
-          filter: `tournament_id=eq.${tournamentId}`,
-        },
-        () => {
-          void load();
-        },
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "tournament_match_goals",
-          filter: `tournament_id=eq.${tournamentId}`,
-        },
-        () => {
-          void load();
-        },
-      )
+      ?.channel(`tournament-bracket:${tournamentId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "tournament_matches", filter: `tournament_id=eq.${tournamentId}` }, () => void load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "tournament_group_members", filter: `tournament_id=eq.${tournamentId}` }, () => void load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "tournament_match_goals", filter: `tournament_id=eq.${tournamentId}` }, () => void load())
       .subscribe();
 
     return () => {
-      void supabase.removeChannel(channel);
+      clearInterval(timer);
+      if (channel && supabase) void supabase.removeChannel(channel);
     };
-  }, [supabase, tournamentId, load]);
+  }, [active, token, tournamentId, supabase, load]);
 
-  const refreshMvpVotes = useCallback(async (authToken: string, matchList: Match[]) => {
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await load();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [load]);
+
+  const refreshMvpVotes = useCallback(async (authToken: string, matchList: BracketMatch[]) => {
     const ids = matchList.filter(matchIsMvpVotable).map((m) => m.id);
     if (!ids.length || !siteOrigin()) {
       setMvpByMatchId({});
@@ -314,7 +279,7 @@ export default function TournamentBracketViewScreen() {
   }, [token, mvpFingerprint, matches, refreshMvpVotes]);
 
   useEffect(() => {
-    if (!supabase || !tournamentId || !token) return;
+    if (!active || !supabase || !tournamentId || !token) return;
     const ids = matchesRef.current.filter(matchIsMvpVotable).map((m) => m.id);
     if (!ids.length) return;
     const filter = `match_id=in.(${ids.join(",")})`;
@@ -336,7 +301,7 @@ export default function TournamentBracketViewScreen() {
     return () => {
       void supabase.removeChannel(ch);
     };
-  }, [supabase, tournamentId, token, mvpFingerprint, refreshMvpVotes]);
+  }, [active, supabase, tournamentId, token, mvpFingerprint, refreshMvpVotes]);
 
   const closeMvpModal = useCallback(() => {
     setMvpModalMatchId(null);
@@ -358,7 +323,12 @@ export default function TournamentBracketViewScreen() {
   }, [token, mvpModalMatchId, mvpSelectedName, closeMvpModal, refreshMvpVotes]);
 
   const groupNames = Array.from(new Set(matches.filter((m) => m.stage === "group").map((m) => m.group_name)));
-  const knockoutMatches = matches.filter((m) => m.stage !== "group");
+  const rounds = useMemo(() => knockoutRounds(matches, upcoming), [matches, upcoming]);
+  const seeded = useMemo(
+    () => teams.filter((t) => t.seed != null).sort((a, b) => (a.seed as number) - (b.seed as number)),
+    [teams],
+  );
+  const anyLive = hasLiveMatch(matches);
 
   if (!token) {
     return (
@@ -376,38 +346,63 @@ export default function TournamentBracketViewScreen() {
     );
   }
 
-  const renderBracketMatchCard = (match: Match) => {
+  const enter = reduceMotion ? undefined : FadeIn.duration(MOTION.duration.base);
+
+  const renderTeamSide = (id: string | null, align: "left" | "right", won: boolean, lost: boolean, fallback: string) => {
+    const team = id ? teamMap[id] : undefined;
+    const sub = seedAndAvgText(team);
+    return (
+      <View style={{ flex: 1, alignItems: align === "right" ? "flex-end" : "flex-start" }}>
+        <View style={styles.teamNameRow}>
+          {won && align === "left" ? <FontAwesome name="check-circle" size={13} color={themeColor().pitchText} style={{ marginRight: 4 }} /> : null}
+          <Text style={[styles.matchTeam, won && styles.matchTeamWon, lost && styles.matchTeamLost]} numberOfLines={1}>
+            {team?.team_name || fallback}
+          </Text>
+          {won && align === "right" ? <FontAwesome name="check-circle" size={13} color={themeColor().pitchText} style={{ marginLeft: 4 }} /> : null}
+        </View>
+        {sub ? (
+          <Text style={[styles.seedSub, lost && styles.matchTeamLost]} numberOfLines={1}>
+            {sub}
+          </Text>
+        ) : null}
+      </View>
+    );
+  };
+
+  const renderBracketMatchCard = (match: BracketMatch) => {
     const mvp = mvpByMatchId[match.id];
     const votable = matchIsMvpVotable(match);
     const top = mvp?.tallies?.length ? topMvpDisplay(mvp.tallies) : null;
-    const scoreLabel =
-      match.is_bye && match.stage !== "group"
-        ? "BYE"
-        : match.score_a !== null && match.score_b !== null
-          ? `${match.score_a} - ${match.score_b}`
-          : "vs";
+    const side = winnerSide(match);
+    const when = match.status === "scheduled" ? scheduledText(match.scheduled_at) : null;
+    const pens = penaltyText(match, teamMap);
     const openVote = () => {
       if (!mvp?.can_vote || !mvp.eligible_players.length) return;
       setMvpModalMatchId(match.id);
       setMvpSelectedName(null);
     };
     return (
-      <View key={match.id} style={styles.matchCard}>
-        <View style={styles.matchRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.matchTeam} numberOfLines={1}>
-              {match.team_a_id ? teamMap[match.team_a_id]?.team_name || "TBD" : "TBD"}
-            </Text>
+      <Animated.View
+        key={match.id}
+        entering={enter}
+        style={[styles.matchCard, match.status === "in_progress" && styles.matchCardLive]}
+        accessible
+        accessibilityLabel={`${teamName(teamMap, match.team_a_id)} versus ${match.team_b_id ? teamName(teamMap, match.team_b_id) : "bye"}. ${STATUS_LABEL[match.status]}.`}
+      >
+        <View style={styles.cardTop}>
+          <View style={[styles.statusChip, match.status === "in_progress" && styles.statusChipLive, match.status === "final" && styles.statusChipFinal]}>
+            <Text style={[styles.statusText, match.status === "in_progress" && styles.statusTextLive]}>{STATUS_LABEL[match.status]}</Text>
           </View>
-          <View style={styles.scoreBox}>
-            <Text style={styles.scoreText}>{scoreLabel}</Text>
-          </View>
-          <View style={{ flex: 1, alignItems: "flex-end" }}>
-            <Text style={styles.matchTeam} numberOfLines={1}>
-              {match.team_b_id ? teamMap[match.team_b_id]?.team_name || "TBD" : "BYE"}
-            </Text>
-          </View>
+          {when ? <Text style={styles.whenText}>{when}</Text> : null}
         </View>
+        <View style={styles.matchRow}>
+          {renderTeamSide(match.team_a_id, "left", side === "a", side === "b", "TBD")}
+          <View style={styles.scoreBox}>
+            <ScoreText label={scoreText(match)} reduceMotion={reduceMotion} />
+          </View>
+          {renderTeamSide(match.team_b_id, "right", side === "b", side === "a", match.is_bye ? "BYE" : "TBD")}
+        </View>
+        {pens ? <Text style={styles.penaltyText}>{pens}</Text> : null}
         {votable ? (
           <View style={styles.mvpRow}>
             {mvp?.can_vote ? (
@@ -430,7 +425,36 @@ export default function TournamentBracketViewScreen() {
             )}
           </View>
         ) : null}
-      </View>
+      </Animated.View>
+    );
+  };
+
+  /** A later round that has no match yet: the teams already known are filled in, the rest say who they are waiting for. */
+  const renderSlotCard = (slot: BracketSlot) => {
+    const known = (id: string | null, label: string | null) => (id ? teamMap[id]?.team_name || "TBD" : label || "TBD");
+    return (
+      <Animated.View key={slot.id} entering={enter} style={[styles.matchCard, styles.slotCard]} accessible accessibilityLabel="Waiting for earlier results">
+        <View style={styles.cardTop}>
+          <View style={styles.statusChip}>
+            <Text style={styles.statusText}>{slot.is_bye ? "Bye" : "Waiting"}</Text>
+          </View>
+        </View>
+        <View style={styles.matchRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.matchTeam, !slot.team_a_id && styles.slotText]} numberOfLines={1}>
+              {known(slot.team_a_id, slot.label_a)}
+            </Text>
+          </View>
+          <View style={styles.scoreBox}>
+            <Text style={styles.scoreText}>vs</Text>
+          </View>
+          <View style={{ flex: 1, alignItems: "flex-end" }}>
+            <Text style={[styles.matchTeam, !slot.team_b_id && styles.slotText]} numberOfLines={1}>
+              {slot.is_bye ? "BYE" : known(slot.team_b_id, slot.label_b)}
+            </Text>
+          </View>
+        </View>
+      </Animated.View>
     );
   };
 
@@ -440,6 +464,7 @@ export default function TournamentBracketViewScreen() {
     <>
     <View style={styles.root}>
       <View style={styles.tabRow}>
+        <SelectionPill style={tabPill.pillStyle} />
         {(
           [
             ["standings", "Standings"],
@@ -449,32 +474,63 @@ export default function TournamentBracketViewScreen() {
         ).map(([id, label]) => (
           <Pressable
             key={id}
+            onLayout={tabPill.onLayoutFor(id)}
             onPress={() => setTab(id)}
             style={({ pressed }) => [
               styles.tab,
-              tab === id && styles.tabActive,
+              tab === id && (tabPill.ready ? styles.tabOnPill : styles.tabActive),
               pressed && { opacity: 0.85 },
             ]}
             accessibilityRole="tab"
             accessibilityState={{ selected: tab === id }}
           >
-            <Text style={[styles.tabText, tab === id && styles.tabTextActive]} numberOfLines={1}>
+            <Text style={[styles.tabText, tab === id && (tabPill.ready ? styles.tabTextOnPill : styles.tabTextActive)]} numberOfLines={1}>
               {label}
             </Text>
           </Pressable>
         ))}
       </View>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={themeColor().pitchText} />}
+      >
         {loadError ? <Text style={styles.err}>{loadError}</Text> : null}
 
         {tab === "standings" ? (
           <>
-            {loading && teams.length === 0 ? (
-              <ActivityIndicator color={themeColor().pitchText} style={{ marginVertical: 24 }} />
-            ) : null}
-            <Text style={styles.title}>Standings</Text>
+            {loading ? <ActivityIndicator color={themeColor().pitchText} style={{ marginVertical: 24 }} /> : null}
+            <View style={styles.titleRow}>
+              <Text style={styles.title}>Standings</Text>
+              {data && !loadError ? <LiveTag pulsing={anyLive} /> : null}
+            </View>
             <Text style={styles.sub}>{teams.length} confirmed teams</Text>
+
+            {seeded.length > 0 ? (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Seeds</Text>
+                {seeded.map((t) => (
+                  <Animated.View key={t.id} entering={enter} style={styles.seedRow}>
+                    <View style={styles.seedBadge}>
+                      <Text style={styles.seedBadgeText}>{t.seed}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.seedName} numberOfLines={1}>
+                        {t.team_name}
+                      </Text>
+                      {t.roster.length ? (
+                        <Text style={styles.seedRoster} numberOfLines={2}>
+                          {t.roster.join(", ")}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <Text style={styles.seedAvg}>{avgText(t)}</Text>
+                  </Animated.View>
+                ))}
+                <Text style={styles.help}>{SEED_HELP}</Text>
+              </View>
+            ) : null}
 
             {groupNames.map((gName) => {
               const gStandings = standings
@@ -529,10 +585,11 @@ export default function TournamentBracketViewScreen() {
 
         {tab === "bracket" ? (
           <>
-            {loading && teams.length === 0 ? (
-              <ActivityIndicator color={themeColor().pitchText} style={{ marginVertical: 24 }} />
-            ) : null}
-            <Text style={styles.title}>Bracket</Text>
+            {loading ? <ActivityIndicator color={themeColor().pitchText} style={{ marginVertical: 24 }} /> : null}
+            <View style={styles.titleRow}>
+              <Text style={styles.title}>Bracket</Text>
+              {data && !loadError ? <LiveTag pulsing={anyLive} /> : null}
+            </View>
             <Text style={styles.sub}>{teams.length} confirmed teams</Text>
 
             {groupNames.map((gName) => (
@@ -544,20 +601,15 @@ export default function TournamentBracketViewScreen() {
               </View>
             ))}
 
-            {knockoutMatches.length > 0 ? (
+            {rounds.length > 0 ? (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Knockout</Text>
-                {(["qf", "sf", "final"] as const).map((stage) => {
-                  const stageMatches = knockoutMatches.filter((m) => m.stage === stage);
-                  if (!stageMatches.length) return null;
-                  const stageLabel = stage === "qf" ? "Quarter-finals" : stage === "sf" ? "Semi-finals" : "Final";
-                  return (
-                    <View key={stage}>
-                      <Text style={styles.stageLabel}>{stageLabel}</Text>
-                      {stageMatches.map((match) => renderBracketMatchCard(match))}
-                    </View>
-                  );
-                })}
+                {rounds.map((round) => (
+                  <View key={round.stage}>
+                    <Text style={styles.stageLabel}>{round.title}</Text>
+                    {round.items.map((item) => (item.kind === "match" ? renderBracketMatchCard(item.match) : renderSlotCard(item.slot)))}
+                  </View>
+                ))}
               </View>
             ) : null}
 
@@ -570,7 +622,10 @@ export default function TournamentBracketViewScreen() {
         {tab === "scorers" ? (
           <>
             {loading ? <ActivityIndicator color={themeColor().pitchText} style={{ marginVertical: 24 }} /> : null}
-            <Text style={styles.title}>Top scorers</Text>
+            <View style={styles.titleRow}>
+              <Text style={styles.title}>Top scorers</Text>
+              {data && !loadError ? <LiveTag pulsing={anyLive} /> : null}
+            </View>
             <Text style={styles.sub}>Goals in this tournament</Text>
 
             {!loading && topScorers.length === 0 ? (
@@ -683,7 +738,7 @@ function make_styles() {
     flex: 1,
     paddingVertical: 8,
     paddingHorizontal: 4,
-    borderRadius: 10,
+    borderRadius: 999,
     backgroundColor: themeColor().overlaySubtle,
     borderWidth: 1,
     borderColor: themeColor().line,
@@ -694,15 +749,46 @@ function make_styles() {
     backgroundColor: themeColor().pitchPanel,
     borderColor: themeColor().pitchText,
   },
+  /* once the selection pill has measured the tabs it carries the colour, so the selected tab itself goes clear */
+  tabOnPill: { backgroundColor: "transparent", borderColor: "transparent" },
   tabText: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", textAlign: "center" },
   tabTextActive: { color: themeColor().text },
+  tabTextOnPill: { color: themeColor().onPitch },
+  titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   title: { color: themeColor().text, fontSize: 24, ...headline },
   sub: { color: themeColor().muted, fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 4, marginBottom: 16 },
   muted: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
   err: { color: themeColor().coralText, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20, marginBottom: 12 },
+  help: { color: themeColor().muted, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17, marginTop: 6 },
   section: { marginBottom: 20 },
   sectionTitle: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800", marginBottom: 8 },
   stageLabel: { color: themeColor().muted, fontSize: 11, fontFamily: "Inter_700Bold", fontWeight: "700", marginTop: 8, marginBottom: 4 },
+  seedRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 6,
+    borderRadius: 10,
+    backgroundColor: themeColor().card,
+    borderWidth: 1,
+    borderColor: themeColor().line,
+  },
+  seedBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: themeColor().pitchPanel,
+    borderWidth: 1,
+    borderColor: themeColor().pitchText,
+  },
+  seedBadgeText: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800" },
+  seedName: { color: themeColor().text, fontSize: 15, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  seedRoster: { color: themeColor().muted, fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2, lineHeight: 16 },
+  seedAvg: { color: themeColor().pitchText, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "800" },
   standingsHeader: { flexDirection: "row", paddingHorizontal: 8, marginBottom: 4 },
   standingsRow: { flexDirection: "row", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 },
   standingsRowQualify: { backgroundColor: themeColor().pitchPanel, borderLeftWidth: 2, borderLeftColor: themeColor().pitch },
@@ -712,21 +798,40 @@ function make_styles() {
   matchRow: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 12,
-    marginBottom: 0,
+    paddingHorizontal: 12,
+    paddingTop: 4,
+    paddingBottom: 12,
     backgroundColor: "transparent",
   },
   matchCard: {
-    marginBottom: 4,
+    marginBottom: 6,
     borderRadius: 10,
     overflow: "hidden",
     backgroundColor: themeColor().card,
     borderWidth: 1,
     borderColor: themeColor().line,
   },
+  matchCardLive: { borderColor: themeColor().pitchText },
+  slotCard: { borderStyle: "dashed", backgroundColor: "transparent" },
+  slotText: { color: themeColor().muted, fontWeight: "600" },
+  cardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 12, paddingTop: 10 },
+  statusChip: {
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    borderRadius: 999,
+    backgroundColor: themeColor().overlaySubtle,
+  },
+  statusChipLive: { backgroundColor: themeColor().pitchPanel },
+  statusChipFinal: { backgroundColor: "transparent" },
+  statusText: { color: themeColor().muted, fontSize: 11, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  statusTextLive: { color: themeColor().pitchText },
+  whenText: { color: themeColor().muted, fontSize: 11, fontFamily: "Inter_400Regular" },
+  teamNameRow: { flexDirection: "row", alignItems: "center" },
+  seedSub: { color: themeColor().muted, fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
+  penaltyText: { color: themeColor().muted, fontSize: 12, fontFamily: "Inter_400Regular", textAlign: "center", paddingHorizontal: 12, paddingBottom: 10, marginTop: -4 },
   mvpRow: {
     paddingHorizontal: 12,
-    paddingTop: 0,
+    paddingTop: 8,
     paddingBottom: 8,
     borderTopWidth: 1,
     borderTopColor: themeColor().line,
@@ -785,9 +890,11 @@ function make_styles() {
   mvpSubmitBtnText: { color: themeColor().onPitch, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
   mvpModalClose: { paddingVertical: 12, alignItems: "center" },
   mvpModalCloseText: { color: themeColor().muted, fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
-  matchTeam: { color: themeColor().text, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700" },
+  matchTeam: { color: themeColor().text, fontSize: 13, fontFamily: "Inter_700Bold", fontWeight: "700", flexShrink: 1 },
+  matchTeamWon: { color: themeColor().pitchText, fontWeight: "800" },
+  matchTeamLost: { opacity: 0.55 },
   scoreBox: { paddingHorizontal: 12 },
-  scoreText: { color: themeColor().pitchText, fontWeight: "800", fontSize: 14, fontFamily: "Inter_700Bold" },
+  scoreText: { color: themeColor().pitchText, fontWeight: "800", fontSize: 16, fontFamily: "Inter_700Bold" },
   scorerRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -812,4 +919,3 @@ let styles = make_styles();
 function publish_styles() {
   styles = make_styles();
 }
-

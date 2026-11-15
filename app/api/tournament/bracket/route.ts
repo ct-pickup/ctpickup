@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin, getSupabaseAnon } from "@/lib/server/runtimeClients";
-import { PAID_OR_READY_CAPTAIN_STATUSES } from "@/lib/tournament/outdoorTournamentConstants";
+import { loadPublicBracket } from "@/lib/tournament/publicBracket";
 import { userMayViewOutdoorTournamentBracket } from "@/lib/tournament/resolveOutdoorHubRegionForUser";
 
 export const runtime = "nodejs";
@@ -10,7 +10,11 @@ function bearer(req: Request) {
   return auth.startsWith("Bearer ") ? auth.slice(7) : null;
 }
 
-/** Read-only bracket payload for signed-in players (same shape as admin bracket GET). */
+/**
+ * Read-only bracket for signed-in players: teams (name, roster names, seed, team average), matches with status and scores,
+ * group standings, the knockout rounds still to fill in, and top scorers. The payload is built from an allow-list in
+ * lib/tournament/publicBracket.ts, so no contact, payment or review field can reach a player from here.
+ */
 export async function GET(req: Request) {
   const admin = getSupabaseAdmin();
   const token = bearer(req);
@@ -32,54 +36,8 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "You need an approved account to view this bracket." }, { status: 403 });
   }
 
-  const [teamsRes, matchesRes, standingsRes] = await Promise.all([
-    admin
-      .from("tournament_captains")
-      .select("id, team_name, captain_name")
-      .eq("tournament_id", tournament_id)
-      .in("status", [...PAID_OR_READY_CAPTAIN_STATUSES]),
-    admin
-      .from("tournament_matches")
-      .select("*")
-      .eq("tournament_id", tournament_id)
-      .order("match_number", { ascending: true }),
-    admin.from("tournament_group_members").select("*").eq("tournament_id", tournament_id),
-  ]);
+  const loaded = await loadPublicBracket(admin, tournament_id);
+  if (!loaded.ok) return NextResponse.json({ error: loaded.error }, { status: 500 });
 
-  if (teamsRes.error) return NextResponse.json({ error: teamsRes.error.message }, { status: 500 });
-  if (matchesRes.error) return NextResponse.json({ error: matchesRes.error.message }, { status: 500 });
-  if (standingsRes.error) return NextResponse.json({ error: standingsRes.error.message }, { status: 500 });
-
-  const goalsJoinRes = await admin
-    .from("tournament_match_goals")
-    .select("scorer_name, tournament_matches!inner(tournament_id)")
-    .eq("tournament_matches.tournament_id", tournament_id);
-
-  let goalRows: { scorer_name: string | null }[];
-  if (!goalsJoinRes.error) {
-    goalRows = (goalsJoinRes.data ?? []) as { scorer_name: string | null }[];
-  } else {
-    const goalsFallback = await admin.from("tournament_match_goals").select("scorer_name").eq("tournament_id", tournament_id);
-    if (goalsFallback.error) return NextResponse.json({ error: goalsFallback.error.message }, { status: 500 });
-    goalRows = (goalsFallback.data ?? []) as { scorer_name: string | null }[];
-  }
-  const counts = new Map<string, number>();
-  for (const row of goalRows) {
-    const name = typeof row.scorer_name === "string" ? row.scorer_name.trim() : "";
-    if (!name) continue;
-    counts.set(name, (counts.get(name) ?? 0) + 1);
-  }
-  const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 20);
-  const top_scorers = sorted.map(([scorer_name, goals], i) => ({
-    scorer_name,
-    goals,
-    rank: i + 1,
-  }));
-
-  return NextResponse.json({
-    teams: teamsRes.data ?? [],
-    matches: matchesRes.data ?? [],
-    standings: standingsRes.data ?? [],
-    top_scorers,
-  });
+  return NextResponse.json(loaded.bracket, { headers: { "Cache-Control": "no-store" } });
 }

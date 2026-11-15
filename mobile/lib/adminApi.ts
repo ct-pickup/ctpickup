@@ -828,7 +828,7 @@ export function postAdminTournamentBracket(
   accessToken: string,
   body: Record<string, unknown>,
 ) {
-  return adminFetch<{ ok?: boolean; message?: string; error?: string }>("/api/admin/tournaments/bracket", accessToken, {
+  return adminFetch<{ ok?: boolean; message?: string; error?: string; warnings?: string[]; won_on_penalties?: boolean }>("/api/admin/tournaments/bracket", accessToken, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
