@@ -4,6 +4,7 @@ import { parseHubRegion } from "@/lib/pickup/hubRegions";
 import { playerMayParticipateInPublicPickupRun } from "@/lib/pickup/publicRunParticipation";
 import { profileMatchesRunServiceRegion } from "@/lib/pickup/venueServiceRegion";
 import { userHasAcceptedCurrentWaiver } from "@/lib/waiver/checkWaiverAccepted";
+import { ratingGateResponse } from "@/lib/ratings/pendingRating";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { pickupFinalizeSlotPushRecipientIds } from "@/lib/pickup/pickupPushNotifications";
 import { isPublicPickupRunType, isSelectPickupRunType } from "@/lib/pickup/pickupRunType";
@@ -115,6 +116,12 @@ export async function POST(req: Request) {
       ? body.slot_label.trim()
       : null;
   const state = String(body.state || "declined"); // 'available' | 'declined'
+
+  // Saying you are available is a commitment, so it needs your last game rated first. Declining is never blocked.
+  if (state === "available") {
+    const ratingGate = await ratingGateResponse(admin, userId);
+    if (ratingGate) return ratingGate;
+  }
 
   const rawSel = body.slot_labels_selection;
   const slot_labels_selection = Array.isArray(rawSel)

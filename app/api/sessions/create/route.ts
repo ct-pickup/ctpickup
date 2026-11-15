@@ -14,6 +14,7 @@ import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { profilePhotoGate } from "@/lib/profilePhoto/requirement";
 import { resolveGameLink } from "@/lib/fields/gameAtField";
 import { requireFlag } from "@/lib/flags";
+import { ratingGateResponse } from "@/lib/ratings/pendingRating";
 import { notifyNewGame } from "@/lib/alerts/fieldAlerts";
 import { notifyFollowersOfHostRun } from "@/lib/pickup/notifyFollowersOfHostRun";
 import { inviteFromPreviousGame, playAgainInfo } from "@/lib/pickup/playAgain";
@@ -49,6 +50,10 @@ export async function POST(req: Request) {
   if (profErr || (!profile?.approved && !profile?.is_admin)) {
     return NextResponse.json({ error: "Your account must be approved to host sessions." }, { status: 403 });
   }
+
+  // Hosting a new game needs your last game rated first. Admins are exempt.
+  const ratingGate = await ratingGateResponse(admin, user.id, { isAdmin: profile?.is_admin === true });
+  if (ratingGate) return ratingGate;
 
   // Admins hosting here play in the session too, so they need a photo like anyone else.
   const photoBlock = await profilePhotoGate(admin, req, { userId: user.id });

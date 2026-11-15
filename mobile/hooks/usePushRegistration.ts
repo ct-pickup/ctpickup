@@ -1,3 +1,4 @@
+import { ballotHref } from "@/lib/pendingRatingCore";
 import { hapticError, hapticGoal, hapticKick, hapticTap, hapticWhistle } from "@/lib/haptics";
 import { getInstallationContext, resolveExpoPushTokenForApp, shouldRegisterPushToken } from "@/lib/pushToken";
 import { postMobilePushToken } from "@/lib/siteApi";
@@ -31,6 +32,7 @@ try {
 const NOTIFICATION_NAV_DELAY_MS = 450;
 
 const ROUTABLE_NOTIFICATION_KINDS = new Set([
+  "rating_required_reminder",
   "pickup_invite",
   "pickup_likely_on",
   "pickup_finalized",
@@ -226,6 +228,16 @@ export function usePushRegistration(accessToken: string | null) {
             router.push({ pathname: "/(tabs)/runs", params: { run_id: runId } } as const);
           } else {
             router.push("/(tabs)/runs" as const);
+          }
+          void hapticForNotificationTap(kind);
+          return;
+        }
+        if (kind === "rating_required_reminder") {
+          const runId = pickupRunIdFromNotificationData(data);
+          if (runId) {
+            router.push(ballotHref(runId) as never);
+          } else {
+            router.push("/(tabs)/sessions" as const);
           }
           void hapticForNotificationTap(kind);
           return;

@@ -19,6 +19,7 @@ const COPY: Record<AdminFlagView["key"], { title: string; detail: string }> = {
   host_follow_alerts: { title: "Followed host alerts", detail: "Followers get a push when a host they follow posts a new game." },
   rating_v2: { title: "Rating v2", detail: "New rating formula. Switch is global: it applies to every game settled while on. Tune numbers in rating_config." },
   rating_results: { title: "Rating results", detail: "Confirmed team results move ratings a little, and captains confirm scores. Needs Rating v2 on." },
+  require_ratings: { title: "Require ratings", detail: "After a game, a player must submit their rating ballot before they can join or book another game. Admins are never blocked. Turn on for your own account first." },
 };
 
 function describe(e: AdminFlagEvent): string {

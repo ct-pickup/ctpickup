@@ -40,6 +40,8 @@ import { serviceRegionForVenueName } from "@/lib/venueServiceRegion";
 import { headline, radius, themeColor, useThemedStyles } from "@/theme";
 import type { DevFixtures } from "../../dev-fixtures";
 import HomeCalendar from "@/components/home/HomeCalendar";
+import { RateGameCard } from "@/components/rating/RateGameCard";
+import { usePendingRating } from "@/hooks/usePendingRating";
 import { HomeTournamentCard } from "@/components/tournament/HomeTournamentCard";
 import { tabBarContentPadding } from "@/lib/tabBar";
 
@@ -396,6 +398,7 @@ export default function HomeScreen() {
   const regionRuns: HomeRun[] = fixture ? [] : live.regionRuns;
   const bestGames: BestGame[] = fixture ? fixture.bestGames : live.bestGames;
   const rateBanner = fixture ? null : live.rateBanner;
+  const { pending: pendingRating, now: ratingNow } = usePendingRating();
   const crowds = useMemo(() => {
     if (!fixture) return live.crowds;
     return new Map<string, RunCrowd>(
@@ -505,7 +508,9 @@ export default function HomeScreen() {
 
       {loadError ? <Text style={styles.errorLine}>{loadError}</Text> : null}
 
-      {rateBanner ? (
+      <RateGameCard pending={pendingRating} now={ratingNow} />
+
+      {rateBanner && !pendingRating ? (
         <Pressable
           onPress={() => openRun(rateBanner.run_id)}
           style={({ pressed }) => [styles.rateBanner, pressed && styles.pressed]}

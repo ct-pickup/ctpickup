@@ -9,6 +9,10 @@
       "schedule": "*/2 * * * *"
     },
     {
+      "path": "/api/cron/rating-reminders",
+      "schedule": "20 * * * *"
+    },
+    {
       "path": "/api/cron/monthly-rewards",
       "schedule": "0 5 1 * *"
     },

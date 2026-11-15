@@ -12,6 +12,8 @@ import { useFieldPhotos } from "@/components/photo";
 import { usePlayedWith } from "@/components/pickup/PlayedWithRow";
 import { MatchLogRow, SeasonHeaderCard, SeasonRatingCard } from "@/components/season/SeasonPieces";
 import { AnimatedPressScale } from "@/components/AnimatedPressScale";
+import { RateGameCard } from "@/components/rating/RateGameCard";
+import { usePendingRating } from "@/hooks/usePendingRating";
 import { SelectionPill, useSelectionPill } from "@/components/motion/SelectionPill";
 import { StaggerIn } from "@/components/motion/StaggerIn";
 import { MOTION } from "@/lib/motion";
@@ -104,6 +106,7 @@ export default function GamesTabScreen() {
     if (params.view === "fields" || params.view === "events") setView(params.view);
   }, [params.view]);
   const view = fieldsOn ? chosenView : "season";
+  const { pending: pendingRating, now: ratingNow } = usePendingRating();
   const viewPill = useSelectionPill<string>(view);
   const [variantIndex, setVariantIndex] = useState(0);
   const variant = FIXTURE_VARIANTS[variantIndex % FIXTURE_VARIANTS.length]!;
@@ -162,6 +165,10 @@ export default function GamesTabScreen() {
             <Text style={styles.headerLinkText}>My requests</Text>
           </Pressable>
         ) : null}
+      </View>
+
+      <View style={styles.rateCardWrap}>
+        <RateGameCard pending={pendingRating} now={ratingNow} />
       </View>
 
       {fieldsOn ? (
@@ -309,6 +316,7 @@ function make_styles() {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: themeColor().bg },
     pressed: { opacity: 0.88 },
+    rateCardWrap: { marginHorizontal: PAGE_PADDING },
     toggle: {
       flexDirection: "row",
       alignSelf: "flex-start",
