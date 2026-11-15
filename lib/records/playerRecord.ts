@@ -3,6 +3,7 @@ import { outcomeForTeam, scoreLineForTeam, type PlayerOutcome } from "@/lib/pick
 import { currentSeason, pointsForGame, seasonForStartAt } from "@/lib/pickup/points";
 import { loadPointsTotals, type PointsTotals } from "@/lib/points/ledger";
 import { isMissingColumnError } from "@/lib/results/resultStore";
+import { uncountedTournamentRunIds } from "@/lib/tournament/hiddenRuns";
 
 /**
  * The one source for a player's pickup record. Everything is recomputed from
@@ -262,7 +263,7 @@ async function resultsForRuns(admin: Admin, runIds: string[]): Promise<RecordRes
 
 /** Full record for one player (header, form strip and match log). About 5 queries plus 2 per 200 games. */
 export async function loadPlayerRecord(admin: Admin, userId: string, now = Date.now()): Promise<PlayerRecord> {
-  const [assignments, rsvps, potdRuns] = await Promise.all([
+  const [assignmentsAll, rsvps, potdRunsAll] = await Promise.all([
     paginate<{ run_id: string; team: string }>((from, to) =>
       admin.from("pickup_run_team_assignments").select("run_id,team").eq("user_id", userId).order("run_id").range(from, to),
     ),
@@ -279,6 +280,11 @@ export async function loadPlayerRecord(admin: Admin, userId: string, now = Date.
       admin.from("pickup_run_results").select("run_id").eq("player_of_day", userId).order("run_id").range(from, to),
     ),
   ]);
+
+  // Hidden tournament match records stay out unless the tournament counts for the season.
+  const hidden = await uncountedTournamentRunIds(admin, [...new Set([...assignmentsAll.map((a) => a.run_id), ...potdRunsAll.map((r) => r.run_id)])]);
+  const assignments = assignmentsAll.filter((a) => !hidden.has(a.run_id));
+  const potdRuns = potdRunsAll.filter((r) => !hidden.has(r.run_id));
 
   const teams = new Map(assignments.map((a) => [a.run_id, a.team]));
   const confirmedRunIds = rsvps.map((r) => r.run_id).filter((v): v is string => Boolean(v));
@@ -343,12 +349,15 @@ async function attachPoints(
  */
 export async function loadRecordSummaries(admin: Admin, userIds?: string[]): Promise<Map<string, PlayerRecordSummary>> {
   if (!userIds) {
-    const results = await selectResults((cols) => (from, to) =>
+    const resultsAll = await selectResults((cols) => (from, to) =>
       admin.from("pickup_run_results").select(cols).order("run_id").range(from, to),
     );
-    const assignments = await paginate<{ run_id: string; user_id: string; team: string }>((from, to) =>
+    const assignmentsAll = await paginate<{ run_id: string; user_id: string; team: string }>((from, to) =>
       admin.from("pickup_run_team_assignments").select("run_id,user_id,team").order("run_id").order("user_id").range(from, to),
     );
+    const hiddenAll = await uncountedTournamentRunIds(admin);
+    const assignments = assignmentsAll.filter((a) => !hiddenAll.has(a.run_id));
+    const results = resultsAll.filter((r) => !hiddenAll.has(r.run_id));
     return attachPoints(
       admin,
       (runs, season) => buildRecordSummaries(assignments, results, undefined, runs, season),
@@ -358,11 +367,11 @@ export async function loadRecordSummaries(admin: Admin, userIds?: string[]): Pro
 
   const ids = Array.from(new Set(userIds.filter(Boolean)));
   if (ids.length === 0) return new Map();
-  const assignments: Array<{ run_id: string; user_id: string; team: string }> = [];
+  const assignmentsAll: Array<{ run_id: string; user_id: string; team: string }> = [];
   const potdRunIds: string[] = [];
   for (let i = 0; i < ids.length; i += CHUNK) {
     const chunk = ids.slice(i, i + CHUNK);
-    assignments.push(
+    assignmentsAll.push(
       ...(await paginate<{ run_id: string; user_id: string; team: string }>((from, to) =>
         admin
           .from("pickup_run_team_assignments")
@@ -381,7 +390,9 @@ export async function loadRecordSummaries(admin: Admin, userIds?: string[]): Pro
       ).map((r) => r.run_id),
     );
   }
-  const runIds = Array.from(new Set([...assignments.map((a) => a.run_id), ...potdRunIds]));
+  const hiddenIds = await uncountedTournamentRunIds(admin, [...new Set([...assignmentsAll.map((a) => a.run_id), ...potdRunIds])]);
+  const assignments = assignmentsAll.filter((a) => !hiddenIds.has(a.run_id));
+  const runIds = Array.from(new Set([...assignments.map((a) => a.run_id), ...potdRunIds.filter((id) => !hiddenIds.has(id))]));
   const results = await resultsForRuns(admin, runIds);
   return attachPoints(admin, (runs, season) => buildRecordSummaries(assignments, results, ids, runs, season), runIds, ids);
 }

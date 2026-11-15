@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { seasonForStartAt } from "@/lib/pickup/points";
 import { outcomeForTeam, scoreLineForTeam, type PlayerOutcome } from "@/lib/pickup/resultOutcome";
 import { isMissingColumnError, isMissingTableError } from "@/lib/results/resultStore";
+import { uncountedTournamentRunIds } from "@/lib/tournament/hiddenRuns";
 
 /**
  * The signed-in player's own detailed game log and insights (CT+). Everything here is the player's own data plus,
@@ -202,7 +203,10 @@ export type GameLogData = { all: GameLogEntry[]; insights: GameLogInsights };
 export async function loadGameLog(admin: Admin, userId: string, now: number = Date.now()): Promise<GameLogData> {
   const mine = await admin.from("pickup_run_team_assignments").select("run_id,team").eq("user_id", userId).limit(5000);
   if (mine.error) throw new Error(mine.error.message);
-  const myTeam = new Map(((mine.data ?? []) as Array<{ run_id: string; team: string }>).map((r) => [r.run_id, r.team]));
+  const mineRows = (mine.data ?? []) as Array<{ run_id: string; team: string }>;
+  // Hidden tournament match records stay out unless the tournament counts for the season.
+  const hidden = await uncountedTournamentRunIds(admin, mineRows.map((r) => r.run_id));
+  const myTeam = new Map(mineRows.filter((r) => !hidden.has(r.run_id)).map((r) => [r.run_id, r.team]));
   const runIds = [...myTeam.keys()];
   if (!runIds.length) return { all: [], insights: { currentWinStreak: 0, longestWinStreak: 0, teammates: [], ratingTrend: null } };
 

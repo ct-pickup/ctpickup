@@ -811,7 +811,21 @@ export type AdminTournamentBracketResponse = {
   standings: Record<string, unknown>[];
   roster_players?: AdminBracketRosterPlayer[];
   match_goals?: Record<string, AdminBracketMatchGoal[]>;
+  /** Rated tournaments: the two switches and whether Rated is locked. Never holds a rating. */
+  rating_options?: AdminBracketRatingOptions;
+  /** Per scored match: did it count for ratings, and a short reason code when not. */
+  match_ratings?: Record<string, { counted: boolean; reason: string | null }>;
   error?: string;
+};
+
+export type AdminBracketRatingOptions = {
+  rated: boolean;
+  count_for_season: boolean;
+  rated_locked: boolean;
+  rated_label: string;
+  season_label: string;
+  rated_note: string;
+  season_note: string;
 };
 
 export function fetchAdminTournamentBracket(accessToken: string, tournamentId: string) {
@@ -828,7 +842,16 @@ export function postAdminTournamentBracket(
   accessToken: string,
   body: Record<string, unknown>,
 ) {
-  return adminFetch<{ ok?: boolean; message?: string; error?: string; warnings?: string[]; won_on_penalties?: boolean }>("/api/admin/tournaments/bracket", accessToken, {
+  return adminFetch<{
+    ok?: boolean;
+    message?: string;
+    error?: string;
+    code?: string;
+    warnings?: string[];
+    won_on_penalties?: boolean;
+    rating?: { status: string; counted: boolean; reason: string | null };
+    rating_options?: AdminBracketRatingOptions;
+  }>("/api/admin/tournaments/bracket", accessToken, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),

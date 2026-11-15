@@ -5,6 +5,8 @@ import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { PAID_OR_READY_CAPTAIN_STATUSES } from "@/lib/tournament/outdoorTournamentConstants";
 import { logMatchScore, startMatch } from "@/lib/tournament/logScore";
 import { recalculateOutdoorGroupStandings } from "@/lib/tournament/recalculateOutdoorGroupStandings";
+import { forgetMatchRecords, loadMatchRatings, loadRatingOptions, rateScoredMatch, setRatingOptions } from "@/lib/tournament/ratedTournament";
+import { ratingOptionsView } from "@/shared/ratedTournament";
 
 export const runtime = "nodejs";
 
@@ -175,12 +177,20 @@ export async function GET(req: Request) {
     });
   }
 
+  // Rated tournaments: the two switches (and whether Rated is locked), and for each scored match whether it counted and why not.
+  // Codes only: no rating is ever sent to a client.
+  const ratingOpts = await loadRatingOptions(admin, tournament_id);
+  const rating_options = ratingOptionsView(ratingOpts);
+  const match_ratings = ratingOpts.rated ? await loadMatchRatings(admin, tournament_id) : {};
+
   return NextResponse.json({
     teams,
     matches: matchesRes.data ?? [],
     standings: standingsRes.data ?? [],
     roster_players,
     match_goals,
+    rating_options,
+    match_ratings,
   });
   } catch (err: unknown) {
     Sentry.captureException(err);
@@ -247,6 +257,11 @@ export async function POST(req: Request) {
     const config = getGroupConfig(teamCount);
     const groupNames = ["A", "B", "C"];
 
+    {
+      // A rated tournament takes its rating effect back out before its matches are deleted.
+      const { data: oldMatches } = await admin.from("tournament_matches").select("id").eq("tournament_id", tournament_id);
+      await forgetMatchRecords(admin, String(tournament_id), ((oldMatches ?? []) as { id: string }[]).map((m) => String(m.id)));
+    }
     await admin.from("tournament_matches").delete().eq("tournament_id", tournament_id);
     await admin.from("tournament_group_members").delete().eq("tournament_id", tournament_id);
     await admin.from("tournament_groups").delete().eq("tournament_id", tournament_id);
@@ -330,6 +345,7 @@ export async function POST(req: Request) {
       winner_id,
       goals: Array.isArray(goals) ? goals : [],
       confirm_reset: confirm_reset === true,
+      beforeApply: (ids) => forgetMatchRecords(admin, String(tournament_id), ids),
     });
     if (!logged.ok) {
       return NextResponse.json({ error: logged.error, code: logged.code, affected: logged.affected }, { status: logged.status });
@@ -383,16 +399,37 @@ export async function POST(req: Request) {
       }
     }
 
+    // Rated tournaments and tournaments that count for the season: record the match and rate it. Nothing happens for any other
+    // tournament. A rating problem never fails the score that was just saved. No push is sent for ratings.
+    const rating = await rateScoredMatch(admin, { tournamentId: String(tournament_id), matchId: String(match_id), actorId: u.data.user.id });
+
     return NextResponse.json({
       ok: true,
       winner_id: logged.winner_id,
       won_on_penalties: logged.won_on_penalties,
       advanced: logged.advanced,
       warnings: logged.warnings,
+      rating,
     });
   }
 
+  if (action === "set_rating_options") {
+    const changed = await setRatingOptions(admin, {
+      tournamentId: String(tournament_id),
+      rated: body.rated,
+      count_for_season: body.count_for_season,
+      actorId: u.data.user.id,
+    });
+    if (!changed.ok) return NextResponse.json({ error: changed.error, code: changed.code }, { status: changed.status });
+    const opts = await loadRatingOptions(admin, String(tournament_id));
+    return NextResponse.json({ ok: true, rating_options: ratingOptionsView(opts) });
+  }
+
   if (action === "generate_knockout") {
+    {
+      const { data: oldKo } = await admin.from("tournament_matches").select("id").eq("tournament_id", tournament_id).in("stage", ["qf", "sf", "final"]);
+      await forgetMatchRecords(admin, String(tournament_id), ((oldKo ?? []) as { id: string }[]).map((m) => String(m.id)));
+    }
     await admin.from("tournament_matches").delete().eq("tournament_id", tournament_id).in("stage", ["qf", "sf", "final"]);
 
     const groupsRes = await admin
