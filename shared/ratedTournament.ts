@@ -24,7 +24,7 @@ const REASON_TEXT: Record<RatingReason, string> = {
   ratings_off: "Ratings are switched off for the whole app right now, so this match didn’t count.",
   not_scored: "No score yet.",
   too_few_players: "Not counted: too few players took part in this match for the rating rule.",
-  teams_uneven: "Not counted: the two teams differ in size by more than the rating rule allows.",
+  teams_uneven: "Not counted: one team has too many more players than the other. Tournaments allow a bigger gap than ordinary games, but this gap was still too large.",
   teams_incomplete: "Not counted: a team has no players with an account.",
   not_counted: "Not counted.",
 };

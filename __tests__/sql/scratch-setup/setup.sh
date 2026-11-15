@@ -28,4 +28,5 @@ psql -q -d "$DB" -c "alter table public.tournament_roster add column if not exis
 run "$MIG/20261104000000_tournament_rated_and_match_runs.sql"
 run "$DIR/20_production_shape.sql"
 run "$MIG/20261106000000_rated_tournaments.sql"
+run "$MIG/20261108000000_tournament_uneven_teams.sql"
 echo "Built $DB. Run: TEST_DATABASE_URL=\"postgresql:///$DB\" npx vitest run --no-file-parallelism __tests__/sql"

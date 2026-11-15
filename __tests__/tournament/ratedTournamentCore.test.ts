@@ -42,6 +42,11 @@ describe("the words and the two rules the admin screen uses", () => {
       expect(t.length).toBeGreaterThan(10);
       expect(t).not.toMatch(/\d/);
     }
+    // the uneven teams sentence says the limit is larger for tournaments, in plain words, with no number
+    const uneven = ratingReasonText("teams_uneven");
+    expect(uneven).toMatch(/^Not counted: /);
+    expect(uneven).toMatch(/Tournaments allow a bigger gap than ordinary games/);
+    expect(uneven).not.toMatch(/rating rule|result_max|diff/i);
     expect(ratingReasonText(null)).toBe("Counted for ratings.");
     expect(ratingReasonText("something_new")).toBe("Not counted.");
   });
