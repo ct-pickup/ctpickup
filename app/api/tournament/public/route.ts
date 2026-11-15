@@ -13,6 +13,7 @@ import {
 import { resolveOutdoorHubRegionForUser } from "@/lib/tournament/resolveOutdoorHubRegionForUser";
 import { selectActiveOutdoorTournamentForRegion } from "@/lib/tournament/selectActiveOutdoorTournament";
 import { captainEntryCents, TOURNAMENT_MIN_CHARGED_PLAYERS, tournamentPriceInfo } from "@/shared/tournamentPrice";
+import { parsePaymentMode } from "@/shared/tournamentPayment";
 
 export const dynamic = "force-dynamic";
 
@@ -134,6 +135,9 @@ export async function GET(req: Request) {
         // versions read entry_fee_cents, so it carries the smallest team price (5 players); newer ones read the per player price.
         entry_fee_cents: captainEntryCents(TOURNAMENT_MIN_CHARGED_PLAYERS),
         price: tournamentPriceInfo(),
+        // How captains pay: "stripe" (in the app) or "manual" (the organizer collects it). Only the mode: the payment instructions are
+        // never in this response; an approved captain gets them from /api/tournament/captain/payment-info.
+        payment_mode: parsePaymentMode(t.payment_mode),
       },
       claimedTeams,
       /** Paid captains (Stripe captured) through final confirmation — used for official / full thresholds. */

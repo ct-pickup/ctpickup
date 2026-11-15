@@ -776,3 +776,15 @@ export async function togglePlayerFollow(
   const fc = typeof o.followers_count === "number" ? o.followers_count : Number(o.followers_count ?? 0);
   return { ok: true, following: o.following, followers_count: Number.isFinite(fc) ? fc : 0 };
 }
+
+/** The signed-in captain's own payment screen when the organizer collects payment outside the app. Instructions arrive only once the claim is approved. */
+export async function fetchTournamentPaymentInfo(accessToken: string, tournamentId: string) {
+  const origin = siteOrigin();
+  if (!origin) return { ok: false, status: 0, json: null as unknown };
+  const r = await fetch(`${origin}/api/tournament/captain/payment-info?tournament_id=${encodeURIComponent(tournamentId)}`, {
+    headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
+    cache: "no-store",
+  });
+  const json = await r.json().catch(() => null);
+  return { ok: r.ok, status: r.status, json };
+}

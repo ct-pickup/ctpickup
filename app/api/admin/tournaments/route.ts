@@ -10,6 +10,11 @@ import { requireAdminBearer } from "@/lib/admin/requireAdmin";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
 import { HUB_REGIONS } from "@/lib/pickup/hubRegions";
 import { normalizeUsZipDigits } from "@/lib/zipRegion";
+import { PAID_OR_READY_CAPTAIN_STATUSES, isPaidOrReadyCaptainStatus } from "@/lib/tournament/outdoorTournamentConstants";
+import { isMissingColumn } from "@/lib/tournament/paymentConfig";
+import { markCaptainPaid, undoCaptainPaid } from "@/lib/tournament/manualPayment";
+import { cleanPaymentInstructions, parsePaymentMode } from "@/shared/tournamentPayment";
+import { captainEntryCents } from "@/shared/tournamentPrice";
 
 export const runtime = "nodejs";
 
@@ -97,7 +102,7 @@ export async function GET(req: Request) {
     const cRes = await admin
       .from("tournament_captains")
       .select(
-        "id,status,captain_name,team_name,captain_instagram,claim_submitted_at,captain_verified,user_id,expected_players,players_paid,payment_received_at",
+        "id,status,captain_name,team_name,captain_instagram,claim_submitted_at,captain_verified,user_id,expected_players,players_paid,payment_received_at,payment_method",
       )
       .eq("tournament_id", active.id)
       .order("claim_submitted_at", { ascending: false });
@@ -120,6 +125,9 @@ export async function GET(req: Request) {
     captains = raw.map((c) => ({
       ...c,
       roster_size: rosterByCaptain[String(c.id)] ?? 0,
+      // For the organizer's reference only: paid or not, and what the team said it would owe at the in-app price (players x $50).
+      paid: isPaidOrReadyCaptainStatus(String(c.status ?? "")),
+      owed_cents: captainEntryCents(c.expected_players),
     }));
   }
 
@@ -243,9 +251,26 @@ export async function POST(req: Request) {
     if (format_summary) insertRow.format_summary = format_summary;
     if (Number.isFinite(minRoster) && minRoster >= 1) insertRow.min_roster_players = Math.floor(minRoster);
 
+    // How captains pay. "stripe" (the default) adds nothing to the row, so a Stripe tournament is created exactly as before. Only
+    // "manual" writes the new columns, and the instructions are kept only for a manual tournament.
+    const paymentMode = parsePaymentMode(body.payment_mode);
+    if (paymentMode === "manual") {
+      insertRow.payment_mode = "manual";
+      const instructions = cleanPaymentInstructions(body.payment_instructions);
+      if (instructions) insertRow.payment_instructions = instructions;
+    }
+
     const { data: created, error } = await admin.from("tournaments").insert(insertRow).select("id,title,slug,is_active,service_region").single();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      if (paymentMode === "manual" && isMissingColumn(error)) {
+        return NextResponse.json(
+          { error: "Collecting payment yourself needs the database update 20261107000000_tournament_manual_payments.sql. Nothing was created. Ask for it to be applied, or create this tournament with payment in the app.", code: "needs_migration" },
+          { status: 503 },
+        );
+      }
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
 
     revalidatePath("/admin/tournament");
     await enqueueRevalidateAndRun(admin, ["/tournament", "/status/tournament"]);
@@ -294,6 +319,50 @@ export async function POST(req: Request) {
     revalidatePath("/admin");
 
     return NextResponse.json({ ok: true });
+  }
+
+  if (action === "set_payment_options") {
+    const tournament_id = String(body.tournament_id || "").trim();
+    if (!tournament_id) return NextResponse.json({ error: "Missing tournament_id." }, { status: 400 });
+    const patch: Record<string, unknown> = {};
+    if (body.payment_instructions !== undefined) patch.payment_instructions = cleanPaymentInstructions(body.payment_instructions);
+    if (body.payment_mode !== undefined) {
+      const next = parsePaymentMode(body.payment_mode);
+      // The way captains pay cannot change once any team has paid or started to pay: it would strand them mid payment.
+      const caps = await admin
+        .from("tournament_captains")
+        .select("id")
+        .eq("tournament_id", tournament_id)
+        .in("status", [...PAID_OR_READY_CAPTAIN_STATUSES, "payment_pending"])
+        .limit(1);
+      if (!caps.error && (caps.data ?? []).length > 0) {
+        const cur = await admin.from("tournaments").select("payment_mode").eq("id", tournament_id).maybeSingle();
+        if (parsePaymentMode((cur.data as { payment_mode?: unknown } | null)?.payment_mode) !== next) {
+          return NextResponse.json({ error: "A team has already paid or started to pay, so how captains pay can no longer be changed.", code: "payment_started" }, { status: 409 });
+        }
+      }
+      patch.payment_mode = next;
+    }
+    if (!Object.keys(patch).length) return NextResponse.json({ ok: true });
+    const { error } = await admin.from("tournaments").update(patch).eq("id", tournament_id);
+    if (error) {
+      if (isMissingColumn(error)) {
+        return NextResponse.json({ error: "This needs the database update 20261107000000_tournament_manual_payments.sql first.", code: "needs_migration" }, { status: 503 });
+      }
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    revalidatePath("/admin/tournament");
+    return NextResponse.json({ ok: true });
+  }
+
+  if (action === "mark_captain_paid" || action === "undo_captain_paid") {
+    const tournament_id = String(body.tournament_id || "").trim();
+    const captain_id = String(body.captain_id || "").trim();
+    if (!tournament_id || !captain_id) return NextResponse.json({ error: "Missing tournament_id or captain_id." }, { status: 400 });
+    const input = { tournamentId: tournament_id, captainId: captain_id, actorId: guard.userId };
+    const r = action === "mark_captain_paid" ? await markCaptainPaid(admin, input) : await undoCaptainPaid(admin, input);
+    if (!r.ok) return NextResponse.json({ error: r.error, code: r.code }, { status: r.status });
+    return NextResponse.json({ ok: true, changed: r.changed, status: r.status });
   }
 
   if (action === "update_submission") {
