@@ -139,6 +139,26 @@ function publicStanding(row: Raw): PublicStanding {
   };
 }
 
+/**
+ * The seed a team had when Generate Groups drew the groups (tournament_group_members.seed and draw_avg, migration 20261109000000) wins over
+ * one worked out from today's ratings, so the seed on the bracket is the one the draw used. Teams with no stored seed (a draw made before
+ * the migration, or no draw yet) keep the seed worked out from current ratings. Never the pot, never a raw score.
+ */
+export function applyDrawSeeds(seeds: readonly SeededTeam[], memberRows: readonly Raw[]): SeededTeam[] {
+  const stored = new Map<string, { seed: number; avg: number | null }>();
+  for (const r of memberRows) {
+    const seed = typeof r.seed === "number" ? r.seed : Number(r.seed);
+    if (r.seed == null || !Number.isFinite(seed) || seed < 1) continue;
+    const avg = r.draw_avg == null ? null : Number(r.draw_avg);
+    stored.set(String(r.team_id), { seed, avg: avg != null && Number.isFinite(avg) ? avg : null });
+  }
+  if (!stored.size) return [...seeds];
+  return seeds.map((t) => {
+    const d = stored.get(t.id);
+    return d ? { id: t.id, seed: d.seed, team_avg: d.avg ?? t.team_avg } : t;
+  });
+}
+
 export type PublicBracketInput = {
   /** Captain rows: only id and team_name are read. */
   captains: readonly Raw[];
@@ -240,10 +260,10 @@ export async function loadPublicBracket(
   }
 
   const ratings = await loadExactRatings(admin, allUserIds);
-  const seeds = seedTeams(
+  const seeds = applyDrawSeeds(seedTeams(
     captains.map((c) => ({ id: String(c.id), team_name: str(c.team_name) ?? "Team", user_ids: [...(membersByTeam.get(String(c.id)) ?? [])] })),
     ratings,
-  );
+  ), standingsRes.data ?? []);
 
   const rosters = new Map<string, string[]>();
   for (const [teamId, ids] of membersByTeam) {

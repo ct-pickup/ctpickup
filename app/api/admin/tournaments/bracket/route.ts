@@ -2,11 +2,15 @@ import * as Sentry from "@sentry/nextjs";
 import { NextResponse } from "next/server";
 import { sendPushToUsers } from "@/lib/push/sendExpoPush";
 import { getSupabaseAdmin } from "@/lib/server/runtimeClients";
+import { isMissingColumn } from "@/lib/tournament/paymentConfig";
 import { PAID_OR_READY_CAPTAIN_STATUSES } from "@/lib/tournament/outdoorTournamentConstants";
 import { logMatchScore, startMatch } from "@/lib/tournament/logScore";
 import { recalculateOutdoorGroupStandings } from "@/lib/tournament/recalculateOutdoorGroupStandings";
 import { forgetMatchRecords, loadMatchRatings, loadRatingOptions, rateScoredMatch, setRatingOptions } from "@/lib/tournament/ratedTournament";
 import { ratingOptionsView } from "@/shared/ratedTournament";
+import { loadExactRatings } from "@/lib/ratings/exactRatings";
+import { seedTeams } from "@/lib/tournament/seeding";
+import { drawSeededGroups } from "@/lib/tournament/seededDraw";
 import { recordTournamentActivationChange } from "@/lib/admin/surfaceHealth";
 import { finishTournament, isFinished } from "@/lib/tournament/finishTournament";
 import { CONFIRM_REQUIRED_CODE, groupsNeedConfirm, groupsWipeMessage, knockoutNeedsConfirm, knockoutWipeMessage, loadWipeSummary } from "@/lib/tournament/generateGuard";
@@ -16,24 +20,6 @@ export const runtime = "nodejs";
 function bearer(req: Request) {
   const auth = req.headers.get("authorization") || "";
   return auth.startsWith("Bearer ") ? auth.slice(7) : null;
-}
-
-function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
-function getGroupConfig(teamCount: number): { groupCount: number; teamsPerGroup: number[] } {
-  if (teamCount === 8) return { groupCount: 2, teamsPerGroup: [4, 4] };
-  if (teamCount === 9) return { groupCount: 3, teamsPerGroup: [3, 3, 3] };
-  if (teamCount === 10) return { groupCount: 2, teamsPerGroup: [5, 5] };
-  if (teamCount === 11) return { groupCount: 3, teamsPerGroup: [4, 4, 3] };
-  if (teamCount === 12) return { groupCount: 3, teamsPerGroup: [4, 4, 4] };
-  return { groupCount: 2, teamsPerGroup: [Math.ceil(teamCount / 2), Math.floor(teamCount / 2)] };
 }
 
 export async function GET(req: Request) {
@@ -239,22 +225,30 @@ export async function POST(req: Request) {
 
     const teamsRes = await admin
       .from("tournament_captains")
-      .select("id, team_name, captain_name")
+      .select("id, team_name, captain_name, user_id")
       .eq("tournament_id", tournament_id)
       .in("status", [...PAID_OR_READY_CAPTAIN_STATUSES]);
 
     if (teamsRes.error) return NextResponse.json({ error: teamsRes.error.message }, { status: 500 });
-    const teams = shuffle(teamsRes.data || []);
+    const teams = teamsRes.data || [];
     const teamCount = teams.length;
 
     if (teamCount < 8 || teamCount > 12) {
       return NextResponse.json({ error: `Need 8-12 paid teams, got ${teamCount}` }, { status: 400 });
     }
 
+    // Everyone on each team (the captain and accepted roster players), for the seeding below.
+    const membersByTeam = new Map<string, string[]>();
     for (const tm of teams) {
       const capId = (tm as { id: string }).id;
-      const { data: ros } = await admin.from("tournament_roster").select("status").eq("captain_id", capId);
-      const accepted = (ros || []).filter((r: { status: string }) => r.status === "accepted").length;
+      const { data: ros } = await admin.from("tournament_roster").select("status, user_id").eq("captain_id", capId);
+      const acceptedRows = (ros || []).filter((r: { status: string }) => r.status === "accepted");
+      const accepted = acceptedRows.length;
+      const captainUid = (tm as { user_id?: string | null }).user_id;
+      membersByTeam.set(capId, [
+        ...(captainUid ? [String(captainUid)] : []),
+        ...acceptedRows.map((r: { user_id?: string | null }) => String(r.user_id ?? "")).filter(Boolean),
+      ]);
       const headcount = 1 + accepted;
       if (headcount < minRoster) {
         return NextResponse.json(
@@ -266,8 +260,20 @@ export async function POST(req: Request) {
       }
     }
 
-    const config = getGroupConfig(teamCount);
-    const groupNames = ["A", "B", "C"];
+    // THE SEEDED DRAW: rank by the average exact rating of each team's players (current ratings, read now), split into pots of one team per
+    // group, deal each pot across the groups at random. A rating read that fails leaves nobody rated, which is a plain random draw.
+    const allUserIds = [...new Set([...membersByTeam.values()].flat())];
+    const ratings = await loadExactRatings(admin, allUserIds);
+    const avgs = seedTeams(
+      teams.map((t) => ({ id: String((t as { id: string }).id), team_name: String((t as { team_name?: string }).team_name ?? "Team"), user_ids: membersByTeam.get(String((t as { id: string }).id)) ?? [] })),
+      ratings,
+    );
+    const avgById = new Map(avgs.map((a) => [a.id, a.team_avg]));
+    const draw = drawSeededGroups(
+      teams.map((t) => ({ id: String((t as { id: string }).id), name: String((t as { team_name?: string }).team_name ?? "Team"), avg: avgById.get(String((t as { id: string }).id)) ?? null })),
+      Math.random,
+    );
+    const teamById = new Map(teams.map((t) => [String((t as { id: string }).id), t]));
 
     // Generating again deletes every existing match and group, scored or not. Refuse unless the admin said yes (the app asks first).
     {
@@ -289,14 +295,12 @@ export async function POST(req: Request) {
     await admin.from("tournament_group_members").delete().eq("tournament_id", tournament_id);
     await admin.from("tournament_groups").delete().eq("tournament_id", tournament_id);
 
-    let teamIndex = 0;
     let matchNumber = 1;
 
-    for (let g = 0; g < config.groupCount; g++) {
-      const groupName = groupNames[g];
-      const groupTeamCount = config.teamsPerGroup[g];
-      const groupTeams = teams.slice(teamIndex, teamIndex + groupTeamCount);
-      teamIndex += groupTeamCount;
+    for (let g = 0; g < draw.groups.length; g++) {
+      const groupName = draw.groups[g]!.name;
+      const groupTeams = draw.groups[g]!.teams.map((d) => teamById.get(d.id)!);
+      const drawnById = new Map(draw.groups[g]!.teams.map((d) => [d.id, d]));
 
       const groupRes = await admin
         .from("tournament_groups")
@@ -307,13 +311,20 @@ export async function POST(req: Request) {
       if (groupRes.error) return NextResponse.json({ error: groupRes.error.message }, { status: 500 });
       const groupId = groupRes.data.id;
 
-      await admin.from("tournament_group_members").insert(
-        groupTeams.map((t) => ({
-          group_id: groupId,
-          tournament_id,
-          team_id: (t as { id: string }).id,
-        })),
-      );
+      // The seed, pot and average each team had at draw time are stored with its place in the group (migration 20261109000000). Before that
+      // migration the columns do not exist, so the same rows are written without them and the draw still works.
+      const memberRows = groupTeams.map((t) => {
+        const d = drawnById.get((t as { id: string }).id)!;
+        return { group_id: groupId, tournament_id, team_id: (t as { id: string }).id, seed: d.seed, pot: d.pot, draw_avg: d.avg };
+      });
+      const ins = await admin.from("tournament_group_members").insert(memberRows);
+      if (ins.error) {
+        if (isMissingColumn(ins.error)) {
+          await admin.from("tournament_group_members").insert(memberRows.map((row) => ({ group_id: row.group_id, tournament_id: row.tournament_id, team_id: row.team_id })));
+        } else {
+          return NextResponse.json({ error: ins.error.message }, { status: 500 });
+        }
+      }
 
       for (let i = 0; i < groupTeams.length; i++) {
         for (let j = i + 1; j < groupTeams.length; j++) {
@@ -332,6 +343,22 @@ export async function POST(req: Request) {
     const recap = await recalculateOutdoorGroupStandings(admin, tournament_id);
     if (!recap.ok) return NextResponse.json({ error: recap.error }, { status: 500 });
 
+    // The record of the draw (who was seeded where, in which pot and group). Averages are the display rating, never a raw score.
+    try {
+      await admin.from("admin_audit_log").insert({
+        actor_id: u.data.user.id,
+        action: "tournament_group_draw",
+        detail: {
+          tournament_id,
+          at: new Date().toISOString(),
+          pot_size: draw.pot_size,
+          teams: draw.groups.flatMap((gr) => gr.teams.map((d) => ({ team_id: d.id, seed: d.seed, pot: d.pot, avg: d.avg, group: gr.name }))),
+        },
+      });
+    } catch {
+      /* the draw already happened; a missing log line must not undo it */
+    }
+
     const { data: capPush } = await admin
       .from("tournament_captains")
       .select("user_id")
@@ -346,7 +373,12 @@ export async function POST(req: Request) {
       });
     }
 
-    return NextResponse.json({ ok: true, message: `Generated groups for ${teamCount} teams` });
+    return NextResponse.json({
+      ok: true,
+      message: `Generated groups for ${teamCount} teams`,
+      // For the admin screen only: each team's seed and pot at draw time, by group.
+      draw: draw.groups.map((gr) => ({ group: gr.name, teams: gr.teams.map((d) => ({ team_id: d.id, team_name: d.name, seed: d.seed, pot: d.pot })) })),
+    });
   }
 
   if (action === "finish_tournament") {
